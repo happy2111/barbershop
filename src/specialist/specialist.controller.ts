@@ -11,9 +11,30 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
-
 import type { Express } from 'express';
 
+const UPLOAD_PATH = '/var/www/barbershop_uploads/specialist/photo';
+const UPLOAD_URL_PREFIX = '/uploads/specialist/photo';
+
+function fileInterceptorConfig() {
+  return {
+    storage: diskStorage({
+      destination: (req: any, file: Express.Multer.File, cb: Function) => {
+        if (!fs.existsSync(UPLOAD_PATH)) fs.mkdirSync(UPLOAD_PATH, { recursive: true });
+        cb(null, UPLOAD_PATH);
+      },
+      filename: (req: any, file: Express.Multer.File, cb: Function) => {
+        const ext = path.extname(file.originalname);
+        const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        cb(null, name);
+      },
+    }),
+    fileFilter: (req: any, file: Express.Multer.File, cb: Function) => {
+      if ((file.mimetype || '').startsWith('image/')) cb(null, true);
+      else cb(new Error('Only image files are allowed'), false);
+    },
+  };
+}
 
 @Controller('specialist')
 export class SpecialistController {
@@ -23,28 +44,10 @@ export class SpecialistController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post()
-  @UseInterceptors(FileInterceptor('photo', {
-    storage: diskStorage({
-      destination: (req, file, cb) => {
-        const uploadDir = path.join(process.cwd(), 'uploads', 'specialist', 'photo');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        cb(null, uploadDir);
-      },
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        cb(null, name);
-      },
-    }),
-    fileFilter: (req, file, cb) => {
-      if ((file.mimetype || '').startsWith('image/')) cb(null, true);
-      else cb(new Error('Only image files are allowed'), false);
-    },
-  }))
+  @UseInterceptors(FileInterceptor('photo', fileInterceptorConfig()))
   create(@Body() dto: CreateSpecialistDto, @UploadedFile() file?: Express.Multer.File) {
     if (file) {
-      const rel = path.relative(process.cwd(), file.path).replace(/\\/g, '/');
-      dto.photo = `/${rel}`;
+      dto.photo = `${UPLOAD_URL_PREFIX}/${path.basename(file.path)}`;
     }
     return this.specialistService.create(dto);
   }
@@ -65,31 +68,14 @@ export class SpecialistController {
     return this.specialistService.findOne(id);
   }
 
+  // Admin-only update
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('photo', {
-    storage: diskStorage({
-      destination: (req, file, cb) => {
-        const uploadDir = path.join(process.cwd(), 'uploads', 'specialist', 'photo');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        cb(null, uploadDir);
-      },
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        cb(null, name);
-      },
-    }),
-    fileFilter: (req, file, cb) => {
-      if ((file.mimetype || '').startsWith('image/')) cb(null, true);
-      else cb(new Error('Only image files are allowed'), false);
-    },
-  }))
+  @UseInterceptors(FileInterceptor('photo', fileInterceptorConfig()))
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSpecialistDto, @UploadedFile() file?: Express.Multer.File) {
     if (file) {
-      const rel = path.relative(process.cwd(), file.path).replace(/\\/g, '/');
-      dto.photo = `/${rel}`;
+      dto.photo = `${UPLOAD_URL_PREFIX}/${path.basename(file.path)}`;
     }
     return this.specialistService.update(id, dto);
   }
@@ -101,6 +87,7 @@ export class SpecialistController {
     return this.specialistService.remove(id);
   }
 
+  // Profile of current user
   @UseGuards(JwtAuthGuard)
   @Get('me/profile')
   me(@CurrentUser() user: any) {
@@ -109,28 +96,10 @@ export class SpecialistController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('me/profile')
-  @UseInterceptors(FileInterceptor('photo', {
-    storage: diskStorage({
-      destination: (req, file, cb) => {
-        const uploadDir = path.join(process.cwd(), 'uploads', 'specialist', 'photo');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        cb(null, uploadDir);
-      },
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        cb(null, name);
-      },
-    }),
-    fileFilter: (req, file, cb) => {
-      if ((file.mimetype || '').startsWith('image/')) cb(null, true);
-      else cb(new Error('Only image files are allowed'), false);
-    },
-  }))
+  @UseInterceptors(FileInterceptor('photo', fileInterceptorConfig()))
   updateMe(@CurrentUser() user: any, @Body() dto: UpdateMeDto, @UploadedFile() file?: Express.Multer.File) {
     if (file) {
-      const rel = path.relative(process.cwd(), file.path).replace(/\\/g, '/');
-      dto.photo = `/${rel}`;
+      dto.photo = `${UPLOAD_URL_PREFIX}/${path.basename(file.path)}`;
     }
     return this.specialistService.updateMe(user.id, dto);
   }
