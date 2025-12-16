@@ -77,7 +77,6 @@ export class AuthService {
 
   async refresh(oldRefreshToken: string | undefined) {
     if (!oldRefreshToken) throw new UnauthorizedException('No refresh token');
-
     let payload: JwtPayload;
     try {
       payload = await this.jwt.verifyAsync<JwtPayload>(oldRefreshToken, {
@@ -86,17 +85,32 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
+    const specialist = await this.prisma.specialist.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, phone: true, name: true, role: true, refreshToken: true }, // выбираем только нужное
+    });
 
-    const specialist = await this.prisma.specialist.findUnique({ where: { id: payload.sub } });
-    if (!specialist || !specialist.refreshToken) throw new UnauthorizedException('Refresh token not found');
-
+    if (!specialist || !specialist.refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
     const match = await bcrypt.compare(oldRefreshToken, specialist.refreshToken);
     if (!match) throw new UnauthorizedException('Refresh token mismatch');
-
-    const { accessToken, refreshToken } = await this.signTokens({ id: specialist.id, phone: specialist.phone, role: specialist.role });
+    const { accessToken, refreshToken } = await this.signTokens({
+      id: specialist.id,
+      phone: specialist.phone,
+      role: specialist.role,
+    });
     await this.setRefreshToken(specialist.id, refreshToken);
-
-    return { accessToken, refreshToken };
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: specialist.id,
+        phone: specialist.phone,
+        name: specialist.name,
+        role: specialist.role,
+      },
+    };
   }
 
   async logout(refreshToken: string | undefined) {

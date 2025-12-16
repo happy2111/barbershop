@@ -1,25 +1,25 @@
-import { IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+  import { IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
-export class UpdateServiceDto {
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  name?: string;
+  export class UpdateServiceDto {
+    @IsString()
+    @IsOptional()
+    @MaxLength(255)
+    name?: string;
 
-  @IsNumber()
-  @IsOptional()
-  price?: number;
+    @IsNumber()
+    @IsOptional()
+    price?: number;
 
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  duration_min?: number;
+    @IsInt()
+    @Min(1)
+    @IsOptional()
+    duration_min?: number;
 
-  @IsInt()
-  @IsOptional()
-  categoryId?: number;
+    @IsInt()
+    @IsOptional()
+    categoryId?: number;
 
-  @IsOptional()
-  @IsString()
-  photo?: string;
-}
+    @IsOptional()
+    @IsString()
+    photo?: string;
+  }

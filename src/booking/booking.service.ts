@@ -64,7 +64,8 @@ export class BookingService {
       dto.end_time,
     );
 
-    return this.prisma.booking.create({ data: dto });
+    const data: any = { ...dto, date: new Date(dto.date) };
+    return this.prisma.booking.create({ data });
   }
 
   //---------------------------------------------
@@ -118,9 +119,12 @@ export class BookingService {
       );
     }
 
+    const data: any = { ...dto };
+    if (dto.date) data.date = new Date(dto.date);
+
     return this.prisma.booking.update({
       where: { id },
-      data: dto,
+      data,
     });
   }
 

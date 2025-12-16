@@ -7,6 +7,7 @@ import { UpdateServiceDto } from './dto/update-service.dto';
 export class ServiceService {
   constructor(private readonly prisma: PrismaService) {}
 
+
   async create(dto: CreateServiceDto) {
     // Ensure category exists
     await this.prisma.service_category.findUniqueOrThrow({ where: { id: dto.categoryId } });
@@ -25,6 +26,17 @@ export class ServiceService {
 
   async findAll() {
     return this.prisma.service.findMany({
+      include: {
+        category: true,
+        specialists: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async fetchByCategory(categoryId: number) {
+    return this.prisma.service.findMany({
+      where: { categoryId },
       include: {
         category: true,
         specialists: true,

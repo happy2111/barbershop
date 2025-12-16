@@ -6,7 +6,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
-  Post,
+  Post, Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -57,5 +57,14 @@ export class ScheduleController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.scheduleService.remove(id);
+  }
+
+  @Get(":id/free-slots")
+  async getFreeSlots(
+    @Param("id") specialistId: number,
+    @Query("serviceId") serviceId: number,
+    @Query("date") date: string
+  ) {
+    return this.scheduleService.getFreeSlots(specialistId, serviceId, date);
   }
 }

@@ -11,6 +11,7 @@ import { ClientModule } from './client/client.module';
 import { SpecialistServiceModule } from './specialist-service/specialist-service.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { BookingModule } from './booking/booking.module';
+import { ProfileModule } from './profile/profile.module';
 
 
 @Module({
@@ -27,6 +28,7 @@ import { BookingModule } from './booking/booking.module';
     SpecialistServiceModule,
     ScheduleModule,
     BookingModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],

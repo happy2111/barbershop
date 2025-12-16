@@ -12,7 +12,7 @@ import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+// @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('specialist')
 export class SpecialistController {
   constructor(private readonly specialistService: SpecialistService) {}
@@ -50,6 +50,11 @@ export class SpecialistController {
   @Get()
   findAll() {
     return this.specialistService.findAll();
+  }
+
+  @Get('by-service/:serviceId')
+  fetchByService(@Param('serviceId', ParseIntPipe) serviceId: number) {
+    return this.specialistService.fetchByService(serviceId);
   }
 
   @UseGuards(JwtAuthGuard)

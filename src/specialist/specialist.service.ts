@@ -88,4 +88,16 @@ export class SpecialistService {
     const updated = await this.prisma.specialist.update({ where: { id: userId }, data });
     return this.toSafe(updated);
   }
+
+  async fetchByService(serviceId: number) {
+    const users = await this.prisma.specialist.findMany({
+      where: {
+        role: 'SPECIALIST' as any,
+        services: { some: { serviceId } },
+      },
+      include: { services: true },
+      orderBy: { id: 'asc' },
+    });
+    return users.map((u) => this.toSafe(u));
+  }
 }

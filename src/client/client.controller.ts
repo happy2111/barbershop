@@ -28,13 +28,12 @@ export class ClientController {
     return this.clientService.findByPhone(phone);
   }
 
-  @Roles('ADMIN')
   @Post()
   create(@Body() dto: CreateClientDto) {
     return this.clientService.create(dto);
   }
 
-  @Roles('ADMIN')
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateClientDto) {
     return this.clientService.update(id, dto);

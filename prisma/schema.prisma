@@ -75,6 +75,7 @@ model schedule {
   end_time     String     @map("end_time")
   specialist   specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
+  @@unique([specialistId, day_of_week])
   @@map("schedules")
 }
 

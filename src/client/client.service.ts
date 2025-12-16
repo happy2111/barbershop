@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -8,10 +8,22 @@ export class ClientService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateClientDto) {
-    return this.prisma.client.create({
-      data: dto,
-    });
+    try {
+      return this.prisma.client.upsert({
+        where: { phone: dto.phone },
+        update: {
+          name: dto.name,
+        },
+        create: dto,
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        throw new BadRequestException('Phone already in use');
+      }
+      throw e;
+    }
   }
+
 
   async findAll() {
     return this.prisma.client.findMany({
@@ -33,10 +45,17 @@ export class ClientService {
   async update(id: number, dto: UpdateClientDto) {
     await this.findOne(id); // проверка на существование
 
-    return this.prisma.client.update({
-      where: { id },
-      data: dto,
-    });
+    try {
+      return await this.prisma.client.update({
+        where: { id },
+        data: dto,
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        throw new BadRequestException('Phone already in use');
+      }
+      throw e;
+    }
   }
 
   async remove(id: number) {

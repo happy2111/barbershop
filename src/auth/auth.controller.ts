@@ -15,11 +15,14 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies?.refreshToken as string | undefined;
-    const { accessToken, refreshToken: newRt } = await this.authService.refresh(refreshToken);
+    const { accessToken, refreshToken: newRt, user } = await this.authService.refresh(refreshToken);
     res.cookie('refreshToken', newRt, this.authService.getRefreshCookieOptions());
-    return { accessToken };
+    return { accessToken, user };
   }
 
   @Post('logout')

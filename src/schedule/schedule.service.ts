@@ -40,6 +40,51 @@ export class ScheduleService {
     });
   }
 
+  async getFreeSlots(specialistId: number, serviceId: number, date: string) {
+    const service = await this.prisma.service.findUnique({
+      where: { id: serviceId },
+    });
+    if (!service) return [];
+
+    const duration = service.duration_min;
+
+    // Преобразуем дату в начало дня (00:00:00) в UTC
+    const dayStart = new Date(`${date}T00:00:00.000Z`);
+
+    // Проверяем, что дата валидная
+    if (isNaN(dayStart.getTime())) {
+      throw new Error('Invalid date format. Expected YYYY-MM-DD');
+    }
+
+    const schedule = await this.prisma.schedule.findFirst({
+      where: {
+        specialistId,
+        day_of_week: dayStart.getUTCDay() // или getDay() — зависит от твоей логики
+      },
+    });
+
+    if (!schedule) return [];
+
+    // Ищем брони ТОЛЬКО на эту дату (с 00:00:00 до 23:59:59.999)
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        specialistId,
+        date: {
+          gte: dayStart,                              // >= 2025-12-26 00:00:00
+          lt: new Date(`${date}T23:59:59.999Z`),      // <  2025-12-27 00:00:00
+        },
+      },
+    });
+
+    const bookedRanges = bookings.map((b) => ({
+      start: b.start_time,
+      end: b.end_time,
+    }));
+
+    return this.generateSlots(schedule.start_time, schedule.end_time, duration, bookedRanges);
+  }
+
+
   async findAll() {
     return this.prisma.schedule.findMany({
       include: { specialist: true },
@@ -99,5 +144,49 @@ export class ScheduleService {
       where: { specialistId },
       orderBy: { day_of_week: 'asc' },
     });
+  }
+
+
+  generateSlots(start: string, end: string, duration: number, booked: any[]) {
+    const slots: any = [];
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+
+    let current = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+
+    while (current + duration <= endMin) {
+      const slotStart = current;
+      const slotEnd = current + duration;
+
+      const formattedStart = this.toTime(slotStart);
+      const formattedEnd = this.toTime(slotEnd);
+
+      const overlap = booked.some((b) =>
+        !(slotEnd <= this.toMinutes(b.start) || slotStart >= this.toMinutes(b.end))
+      );
+
+      if (!overlap) {
+        slots.push({
+          start: formattedStart,
+          end: formattedEnd,
+        });
+      }
+
+      current += duration;
+    }
+
+    return slots;
+  }
+
+  toMinutes(t: string) {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  }
+
+  toTime(m: number) {
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   }
 }
