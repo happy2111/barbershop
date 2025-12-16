@@ -12,7 +12,9 @@ import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// @UseGuards(JwtAuthGuard, RolesGuard)
+import type { Express } from 'express';
+
+
 @Controller('specialist')
 export class SpecialistController {
   constructor(private readonly specialistService: SpecialistService) {}
