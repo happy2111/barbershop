@@ -1,23 +1,35 @@
-# 1. Берём официальный Node.js
-FROM node:20
+# Stage 1: build
+FROM node:20 AS builder
 
-# 2. Рабочая директория внутри контейнера
 WORKDIR /usr/src/app
 
-# 3. Копируем package.json и package-lock.json
+# Копируем package.json и устанавливаем все зависимости (включая dev)
 COPY package*.json ./
-
-# 4. Устанавливаем зависимости
 RUN npm install
 
-# 5. Копируем весь проект
+# Копируем весь проект
 COPY . .
 
-# 6. Собираем NestJS
+# Генерируем Prisma Client
+RUN npx prisma generate
+
+# Сборка NestJS
 RUN npm run build
 
-# 7. Экспонируем порт
-EXPOSE 5000
+# Stage 2: production
+FROM node:20
 
-# 8. Запуск приложения
-CMD ["npm", "run", "start:prod"]
+WORKDIR /usr/src/app
+
+# Копируем только production зависимости
+COPY package*.json ./
+RUN npm install --production
+
+# Копируем скомпилированный код и Prisma Client
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+
+# Копируем .env
+COPY .env .env
+
+CMD ["node", "dist/main"]
