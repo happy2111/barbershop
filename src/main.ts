@@ -15,6 +15,7 @@ async function bootstrap() {
     ],
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization',
+    exposedHeaders: ['set-cookie'], // Помогает браузеру увидеть куки
   });
 
 
