@@ -8,7 +8,11 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableCors({
-    origin: ['http://localhost:3000', 'https://www.romitan-barbershop.uz'],
+    origin: [
+      'http://localhost:3000',
+      'https://www.romitan-barbershop.uz',
+      'https://romitan-barbershop.uz',
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
