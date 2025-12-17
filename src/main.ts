@@ -18,6 +18,7 @@ async function bootstrap() {
 
 
 
+
   const UPLOAD_PATH = '/var/www/barbershop_uploads';
 
   app.useStaticAssets(`${UPLOAD_PATH}/service`, { prefix: '/uploads/service' });
