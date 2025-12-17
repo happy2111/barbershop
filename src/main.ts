@@ -14,6 +14,7 @@ async function bootstrap() {
       'https://romitan-barbershop.uz',
     ],
     credentials: true,
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
 

@@ -132,10 +132,10 @@ export class AuthService {
 
     return {
       httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? ('none' as const) : ('lax' as const),
+      secure: true, // Всегда true для HTTPS
+      sameSite: 'none' as const, // Разрешаем кросс-доменные куки
       path: '/',
-      maxAge,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     };
   }
 
