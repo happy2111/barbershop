@@ -129,12 +129,14 @@ export class AuthService {
     const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '7d');
     const maxAge = this.parseDurationToMs(refreshExpiresIn, 7 * 24 * 60 * 60 * 1000);
     const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
+
     return {
       httpOnly: true as const,
-      secure: isProd,
-      sameSite: ('lax' as const),
+      secure: isProd,              // true в prod
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
       maxAge,
     };
   }
+
 }
