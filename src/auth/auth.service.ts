@@ -131,12 +131,13 @@ export class AuthService {
     const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
 
     return {
-      httpOnly: true as const,
-      secure: isProd,              // true в prod
-      sameSite: isProd ? 'none' : 'lax',
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? ('none' as const) : ('lax' as const),
       path: '/',
       maxAge,
     };
   }
+
 
 }

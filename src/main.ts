@@ -8,20 +8,14 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableCors({
-    origin: (origin, callback) => {
-      const allowed = [
-        'http://localhost:3000',
-        'https://www.romitan-barbershop.uz',
-        'https://romitan-barbershop.uz',
-      ];
-
-      if (!origin) return callback(null, true);
-      if (allowed.includes(origin)) return callback(null, true);
-
-      callback(new Error('Not allowed by CORS'));
-    },
+    origin: [
+      'http://localhost:3000',
+      'https://www.romitan-barbershop.uz',
+      'https://romitan-barbershop.uz',
+    ],
     credentials: true,
   });
+
 
 
   const UPLOAD_PATH = '/var/www/barbershop_uploads';
