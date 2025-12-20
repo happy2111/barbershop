@@ -21,8 +21,12 @@ import { diskStorage } from 'multer';
 import path from 'node:path';
 import * as fs from 'fs';
 import type { Express } from 'express';
+import {ChangePasswordDto} from "./dto/change-password.dto";
+
 const UPLOAD_PATH = '/var/www/barbershop_uploads/specialist/photo';
 const UPLOAD_URL_PREFIX = '/uploads/specialist/photo';
+
+
 
 function fileInterceptorConfig() {
   return {
@@ -86,5 +90,10 @@ export class ProfileController {
   @Get('bookings/past')
   getPastBookings(@Request() req) {
     return this.profileService.getPastBookings(req.user.id);
+  }
+
+  @Post('change-password')
+  changePassword(@Request() req, @Body() body: ChangePasswordDto) {
+    return this.profileService.changePassword(req.user.id, body.oldPassword, body.newPassword);
   }
 }
