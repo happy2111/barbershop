@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // твой готовый сервис
 import { UpdateSpecialistDto } from './dto/update-specialist.dto';
 import { CreateScheduleDto} from './dto/schedule.dto';
-
+import * as bcrypt from 'bcryptjs';
 @Injectable()
 export class ProfileService {
   constructor(private prisma: PrismaService) {}
@@ -164,5 +164,29 @@ export class ProfileService {
       },
       orderBy: { date: 'desc' },
     });
+  }
+
+  async changePassword(specialistId: number, oldPassword: string, newPassword: string) {
+    const specialist = await this.prisma.specialist.findUnique({
+      where: { id: specialistId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден');
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, specialist.password);
+    if (!isMatch) {
+      throw new NotFoundException('Старый пароль неверен');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.specialist.update({
+      where: { id: specialistId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Пароль успешно изменён' };
   }
 }
