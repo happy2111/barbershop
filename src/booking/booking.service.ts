@@ -20,30 +20,18 @@ export class BookingService {
     date: string,
     start: string,
     end: string,
+    companyId: number,
   ) {
     const exists = await this.prisma.booking.findFirst({
       where: {
         specialistId,
+        companyId,
         date: new Date(date),
-        status: {
-          in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-        },
+        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
         OR: [
-          // start_inside existing
-          {
-            start_time: { lte: start },
-            end_time: { gt: start },
-          },
-          // end_inside existing
-          {
-            start_time: { lt: end },
-            end_time: { gte: end },
-          },
-          // fully inside existing
-          {
-            start_time: { gte: start },
-            end_time: { lte: end },
-          },
+          { start_time: { lte: start }, end_time: { gt: start } },
+          { start_time: { lt: end }, end_time: { gte: end } },
+          { start_time: { gte: start }, end_time: { lte: end } },
         ],
       },
     });
@@ -57,26 +45,53 @@ export class BookingService {
   // CREATE
   //---------------------------------------------
   async create(dto: CreateBookingDto) {
+    // Находим компанию по hostname
+    const company = await this.prisma.company.findUnique({
+      where: { domain: dto.hostname },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+
     await this.ensureTimeSlotAvailable(
       dto.specialistId,
       dto.date,
       dto.start_time,
       dto.end_time,
+      company.id,
     );
 
-    const data: any = { ...dto, date: new Date(dto.date) };
+    const data: any = {
+      ...dto,
+      date: new Date(dto.date),
+      companyId: company.id,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    delete data.hostname; // удаляем hostname, чтобы не сохранять его в БД
+
     return this.prisma.booking.create({ data });
   }
 
   //---------------------------------------------
   // FIND ALL (фильтры по необходимости)
   //---------------------------------------------
-  async findAll(params?: any) {
+  async findAll(hostname: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { domain: hostname },
+    });
+
+    if (!company) throw new NotFoundException('Company not found');
+
     return this.prisma.booking.findMany({
-      where: params?.where,
+      where: { companyId: company.id },
       include: {
         client: true,
-        specialist: true,
+        specialist: {
+          select: {
+            id: true,
+            name: true,
+            photo: true,
+            phone: true,
+          },
+        },
         service: true,
       },
     });
@@ -99,11 +114,23 @@ export class BookingService {
     return booking;
   }
 
-  //---------------------------------------------
-  // UPDATE
-  //---------------------------------------------
-  async update(id: number, dto: UpdateBookingDto) {
-    const booking = await this.findOne(id);
+  async update(id: number, dto: UpdateBookingDto, hostname: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { domain: hostname },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    // Проверяем принадлежность брони компании
+    if (booking.companyId !== company.id) {
+      throw new BadRequestException(
+        'This booking does not belong to the company',
+      );
+    }
 
     // Если время меняется — снова проверяем занятость
     if (
@@ -116,14 +143,17 @@ export class BookingService {
         dto.date ?? booking.date.toISOString(),
         dto.start_time ?? booking.start_time,
         dto.end_time ?? booking.end_time,
+        company.id, // фильтруем по компании
       );
     }
 
     const data: any = { ...dto };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (dto.date) data.date = new Date(dto.date);
 
     return this.prisma.booking.update({
       where: { id },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       data,
     });
   }

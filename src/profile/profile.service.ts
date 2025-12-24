@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // твой готовый сервис
 import { UpdateSpecialistDto } from './dto/update-specialist.dto';
-import { CreateScheduleDto} from './dto/schedule.dto';
+import { CreateScheduleDto } from './dto/schedule.dto';
 
 @Injectable()
 export class ProfileService {
@@ -58,8 +58,22 @@ export class ProfileService {
   }
 
   // Обновить информацию о специалисте
-  async updateProfile(specialistId: number, dto: UpdateSpecialistDto) {
-    return this.prisma.specialist.update({
+  async updateProfile(
+    specialistId: number,
+    companyId: number,
+    dto: UpdateSpecialistDto,
+  ) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
+    // Обновляем
+    const updated = await this.prisma.specialist.update({
       where: { id: specialistId },
       data: dto,
       select: {
@@ -71,16 +85,39 @@ export class ProfileService {
         skills: true,
       },
     });
+
+    return updated;
   }
 
-  async getSchedule(specialistId: number) {
+  async getSchedule(specialistId: number, companyId: number) {
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     return this.prisma.schedule.findMany({
       where: { specialistId },
       orderBy: { day_of_week: 'asc' },
     });
   }
 
-  async upsertSchedule(specialistId: number, dto: CreateScheduleDto) {
+  async upsertSchedule(
+    specialistId: number,
+    companyId: number,
+    dto: CreateScheduleDto,
+  ) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const existing = await this.prisma.schedule.findUnique({
       where: {
         specialistId_day_of_week: {
@@ -102,13 +139,26 @@ export class ProfileService {
         data: {
           ...dto,
           specialistId,
+          companyId,
         },
       });
     }
   }
 
-  // Удалить расписание на день недели
-  async deleteSchedule(specialistId: number, day_of_week: number) {
+  async deleteSchedule(
+    specialistId: number,
+    companyId: number,
+    day_of_week: number,
+  ) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const schedule = await this.prisma.schedule.findUnique({
       where: {
         specialistId_day_of_week: {
@@ -130,7 +180,16 @@ export class ProfileService {
   }
 
   // Получить предстоящие брони
-  async getUpcomingBookings(specialistId: number) {
+  async getUpcomingBookings(specialistId: number, companyId: number) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -148,8 +207,16 @@ export class ProfileService {
     });
   }
 
-  // Получить прошедшие брони (история)
-  async getPastBookings(specialistId: number) {
+  async getPastBookings(specialistId: number, companyId: number) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

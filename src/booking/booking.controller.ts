@@ -5,12 +5,16 @@ import {
   Body,
   Patch,
   Param,
-  Delete, ParseIntPipe,
+  Delete,
+  ParseIntPipe,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { BookingStatus } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('booking')
 export class BookingController {
@@ -22,18 +26,22 @@ export class BookingController {
   }
 
   @Get()
-  findAll() {
-    return this.bookingService.findAll();
+  findAll(@Query('hostname') hostname: string) {
+    return this.bookingService.findAll(hostname);
   }
-
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.bookingService.findOne(+id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Param('id') id: number, @Body() dto: UpdateBookingDto) {
-    return this.bookingService.update(+id, dto);
+  update(
+    @Param('id') id: number,
+    @Query('hostname') hostname: string,
+    @Body() dto: UpdateBookingDto,
+  ) {
+    return this.bookingService.update(id, dto, hostname);
   }
 
   @Patch(':id/status/:status')
@@ -44,6 +52,7 @@ export class BookingController {
     return this.bookingService.changeStatus(+id, status);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: number) {
     return this.bookingService.remove(+id);

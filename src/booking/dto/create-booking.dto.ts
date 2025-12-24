@@ -22,4 +22,7 @@ export class CreateBookingDto {
 
   @IsEnum(BookingStatus)
   status?: BookingStatus = BookingStatus.PENDING;
+
+  @IsString()
+  hostname: string;
 }

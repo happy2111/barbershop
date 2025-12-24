@@ -18,13 +18,12 @@ async function bootstrap() {
     exposedHeaders: ['set-cookie'], // Помогает браузеру увидеть куки
   });
 
-
-
-
   const UPLOAD_PATH = '/var/www/barbershop_uploads';
 
   app.useStaticAssets(`${UPLOAD_PATH}/service`, { prefix: '/uploads/service' });
-  app.useStaticAssets(`${UPLOAD_PATH}/specialist`, { prefix: '/uploads/specialist' });
+  app.useStaticAssets(`${UPLOAD_PATH}/specialist`, {
+    prefix: '/uploads/specialist',
+  });
 
   app.useStaticAssets('uploads', { prefix: '/uploads' });
 

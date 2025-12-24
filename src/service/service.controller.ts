@@ -8,9 +8,10 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
-  UseInterceptors
+  UseInterceptors,
 } from '@nestjs/common';
 import { ServiceService } from './service.service';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -23,6 +24,8 @@ import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Express } from 'express';
+import { PrismaService } from '../prisma/prisma.service';
+import { User } from '../auth/types/AuthRequest';
 
 const UPLOAD_PATH = '/var/www/barbershop_uploads/service/photo';
 const UPLOAD_URL_PREFIX = '/uploads/service/photo';
@@ -31,7 +34,8 @@ function fileInterceptorConfig() {
   return {
     storage: diskStorage({
       destination: (req: any, file: Express.Multer.File, cb: Function) => {
-        if (!fs.existsSync(UPLOAD_PATH)) fs.mkdirSync(UPLOAD_PATH, { recursive: true });
+        if (!fs.existsSync(UPLOAD_PATH))
+          fs.mkdirSync(UPLOAD_PATH, { recursive: true });
         cb(null, UPLOAD_PATH);
       },
       filename: (req: any, file: Express.Multer.File, cb: Function) => {
@@ -49,21 +53,30 @@ function fileInterceptorConfig() {
 
 @Controller('service')
 export class ServiceController {
-  constructor(private readonly serviceService: ServiceService) {}
+  constructor(
+    private readonly serviceService: ServiceService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get()
-  findAll() {
-    return this.serviceService.findAll();
+  findAll(@Query('hostname') hostname: string) {
+    return this.serviceService.findAllByHostname(hostname);
   }
 
   @Get('by-category/:categoryId')
-  fetchByCategory(@Param('categoryId', ParseIntPipe) categoryId: number) {
-    return this.serviceService.fetchByCategory(categoryId);
+  fetchByCategory(
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+    @Query('hostname') hostname: string,
+  ) {
+    return this.serviceService.fetchByCategory(categoryId, hostname);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.serviceService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('hostname') hostname: string,
+  ) {
+    return this.serviceService.findOne(id, hostname);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,19 +85,24 @@ export class ServiceController {
   @UseInterceptors(FileInterceptor('photo', fileInterceptorConfig()))
   async create(
     @Body() rawBody: any,
-    @UploadedFile() file?: Express.Multer.File
+    @User() user: { companyId: number },
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     const dto: CreateServiceDto = {
       name: rawBody.name?.trim(),
       price: Number(rawBody.price),
       duration_min: parseInt(rawBody.duration_min, 10),
       categoryId: parseInt(rawBody.categoryId, 10),
+      companyId: user.companyId,
     };
 
     if (!dto.name) throw new BadRequestException('Name is required');
-    if (isNaN(dto.price) || dto.price <= 0) throw new BadRequestException('Valid price is required');
-    if (isNaN(dto.duration_min) || dto.duration_min < 1) throw new BadRequestException('Valid duration_min (>=1) is required');
-    if (isNaN(dto.categoryId)) throw new BadRequestException('Valid categoryId is required');
+    if (isNaN(dto.price) || dto.price <= 0)
+      throw new BadRequestException('Valid price is required');
+    if (isNaN(dto.duration_min) || dto.duration_min < 1)
+      throw new BadRequestException('Valid duration_min (>=1) is required');
+    if (isNaN(dto.categoryId))
+      throw new BadRequestException('Valid categoryId is required');
 
     if (file) {
       dto.photo = `${UPLOAD_URL_PREFIX}/${path.basename(file.path)}`;
@@ -100,14 +118,29 @@ export class ServiceController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() rawBody: any,
-    @UploadedFile() file?: Express.Multer.File
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     const dto: UpdateServiceDto = {};
 
     if (rawBody.name !== undefined) dto.name = rawBody.name?.trim();
-    if (rawBody.price !== undefined) dto.price = Number(rawBody.price);
-    if (rawBody.duration_min !== undefined) dto.duration_min = parseInt(rawBody.duration_min, 10);
-    if (rawBody.categoryId !== undefined) dto.categoryId = parseInt(rawBody.categoryId, 10);
+    if (rawBody.price !== undefined) {
+      const price = Number(rawBody.price);
+      if (isNaN(price) || price <= 0)
+        throw new BadRequestException('Valid price is required');
+      dto.price = price;
+    }
+    if (rawBody.duration_min !== undefined) {
+      const duration = parseInt(rawBody.duration_min, 10);
+      if (isNaN(duration) || duration < 1)
+        throw new BadRequestException('Valid duration_min (>=1) is required');
+      dto.duration_min = duration;
+    }
+    if (rawBody.categoryId !== undefined) {
+      const categoryId = parseInt(rawBody.categoryId, 10);
+      if (isNaN(categoryId))
+        throw new BadRequestException('Valid categoryId is required');
+      dto.categoryId = categoryId;
+    }
 
     if (file) {
       dto.photo = `${UPLOAD_URL_PREFIX}/${path.basename(file.path)}`;
@@ -115,11 +148,13 @@ export class ServiceController {
 
     return this.serviceService.update(id, dto);
   }
-
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.serviceService.remove(id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: { companyId: number }, // берём companyId из JWT
+  ) {
+    return this.serviceService.remove(id, user.companyId);
   }
 }

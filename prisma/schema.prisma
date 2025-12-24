@@ -7,91 +7,128 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model specialist {
-  id           Int     @id @default(autoincrement()) @map("id")
-  name         String  @map("name")
-  phone        String  @unique @map("phone")
-  password     String  @map("password")
-  role         Role    @default(SPECIALIST) @map("role")
-  photo        String? @map("photo")
-  description  String? @map("description")
-  skills       String? @map("skills")
-  refreshToken String? @map("refresh_token")
+model company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  domain    String?  @unique
+  createdAt DateTime @default(now())
 
+  specialists       specialist[]
+  services          service[]
+  serviceCategories service_category[]
+  clients           client[]
+  bookings          booking[]
+  schedules         schedule[]
+
+  @@map("companies")
+}
+
+model specialist {
+  id        Int @id @default(autoincrement())
+  companyId Int
+
+  name         String
+  phone        String
+  password     String
+  role         Role    @default(SPECIALIST)
+  photo        String?
+  description  String?
+  skills       String?
+  refreshToken String?
+
+  company   company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   schedules schedule[]
   bookings  booking[]
   services  specialist_service[]
 
+  @@unique([companyId, phone])
   @@map("specialists")
 }
 
 model service_category {
-  id       Int       @id @default(autoincrement()) @map("id")
-  name     String    @unique @map("name")
+  id        Int    @id @default(autoincrement())
+  companyId Int
+  name      String
+
+  company  company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   services service[]
 
+  @@unique([companyId, name])
   @@map("service_categories")
 }
 
 model service {
-  id           Int                  @id @default(autoincrement()) @map("id")
-  name         String               @map("name")
-  price        Float                @map("price")
-  duration_min Int                  @map("duration_min")
-  categoryId   Int                  @map("category_id")
-  photo        String?              @map("photo")
-  category     service_category     @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  bookings     booking[]
-  specialists  specialist_service[]
+  id           Int     @id @default(autoincrement())
+  companyId    Int
+  name         String
+  price        Float
+  duration_min Int
+  categoryId   Int
+  photo        String?
+
+  company     company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category    service_category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  bookings    booking[]
+  specialists specialist_service[]
 
   @@map("services")
 }
 
 model specialist_service {
-  id           Int        @id @default(autoincrement()) @map("id")
-  specialistId Int        @map("specialist_id")
-  serviceId    Int        @map("service_id")
-  specialist   specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  service      service    @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id           Int @id @default(autoincrement())
+  specialistId Int
+  serviceId    Int
+
+  specialist specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  service    service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@unique([specialistId, serviceId])
   @@map("specialist_services")
 }
 
 model client {
-  id       Int       @id @default(autoincrement()) @map("id")
-  name     String?   @map("name")
-  phone    String    @unique @map("phone")
+  id        Int     @id @default(autoincrement())
+  companyId Int
+  name      String?
+  phone     String
+
+  company  company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   bookings booking[]
 
+  @@unique([companyId, phone])
   @@map("clients")
 }
 
 model schedule {
-  id           Int        @id @default(autoincrement()) @map("id")
-  specialistId Int        @map("specialist_id")
-  day_of_week  Int        @map("day_of_week")
-  start_time   String     @map("start_time")
-  end_time     String     @map("end_time")
-  specialist   specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id           Int    @id @default(autoincrement())
+  companyId    Int
+  specialistId Int
+  day_of_week  Int
+  start_time   String
+  end_time     String
+
+  company    company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  specialist specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
 
   @@unique([specialistId, day_of_week])
   @@map("schedules")
 }
 
 model booking {
-  id           Int           @id @default(autoincrement()) @map("id")
-  clientId     Int           @map("client_id")
-  specialistId Int           @map("specialist_id")
-  serviceId    Int           @map("service_id")
-  date         DateTime      @map("date")
-  start_time   String        @map("start_time")
-  end_time     String        @map("end_time")
-  status       BookingStatus @default(PENDING) @map("status")
+  id           Int           @id @default(autoincrement())
+  companyId    Int
+  clientId     Int
+  specialistId Int
+  serviceId    Int
+  date         DateTime
+  start_time   String
+  end_time     String
+  status       BookingStatus @default(PENDING)
 
-  client     client     @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  specialist specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  service    service    @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  company    company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client     client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  specialist specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  service    service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@map("bookings")
 }

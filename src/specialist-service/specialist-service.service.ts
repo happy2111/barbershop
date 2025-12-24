@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSpecialistServiceDto } from './dto/create-specialist-service.dto';
 import { UpdateSpecialistServiceDto } from './dto/update-specialist-service.dto';
@@ -10,13 +14,13 @@ export class SpecialistServiceService {
   async create(dto: CreateSpecialistServiceDto) {
     // Проверяем что мастер существует
     const specialist = await this.prisma.specialist.findUnique({
-      where: { id: dto.specialistId }
+      where: { id: dto.specialistId },
     });
     if (!specialist) throw new NotFoundException('Specialist not found');
 
     // Проверяем что услуга существует
     const service = await this.prisma.service.findUnique({
-      where: { id: dto.serviceId }
+      where: { id: dto.serviceId },
     });
     if (!service) throw new NotFoundException('Service not found');
 
@@ -29,11 +33,13 @@ export class SpecialistServiceService {
         include: {
           specialist: true,
           service: true,
-        }
+        },
       });
     } catch (err) {
       if (err.code === 'P2002') {
-        throw new BadRequestException('This service is already linked to specialist');
+        throw new BadRequestException(
+          'This service is already linked to specialist',
+        );
       }
       throw err;
     }

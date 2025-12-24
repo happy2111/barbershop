@@ -4,7 +4,7 @@ import {
   IsPhoneNumber,
   IsString,
   Matches,
-  MinLength
+  MinLength,
 } from 'class-validator';
 
 export class CreateSpecialistDto {
@@ -22,7 +22,9 @@ export class CreateSpecialistDto {
   password!: string;
 
   @IsOptional()
-  @IsEnum(['ADMIN', 'SPECIALIST'], { message: 'role must be ADMIN or SPECIALIST' } as any)
+  @IsEnum(['ADMIN', 'SPECIALIST'], {
+    message: 'role must be ADMIN or SPECIALIST',
+  } as any)
   role?: 'ADMIN' | 'SPECIALIST';
 
   @IsOptional()

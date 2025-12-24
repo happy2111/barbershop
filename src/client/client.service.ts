@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -7,34 +11,56 @@ import { UpdateClientDto } from './dto/update-client.dto';
 export class ClientService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateClientDto) {
+  async create(dto: CreateClientDto, hostname: string) {
+    // Находим компанию по домену
+    const company = await this.prisma.company.findUnique({
+      where: { domain: hostname },
+    });
+
+    if (!company) {
+      throw new BadRequestException('Company not found');
+    }
+
     try {
       return this.prisma.client.upsert({
-        where: { phone: dto.phone },
+        where: {
+          companyId_phone: {
+            companyId: company.id,
+            phone: dto.phone,
+          },
+        },
         update: {
           name: dto.name,
         },
-        create: dto,
+        create: {
+          ...dto,
+          companyId: company.id,
+        },
       });
     } catch (e: any) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (e?.code === 'P2002') {
-        throw new BadRequestException('Phone already in use');
+        throw new BadRequestException('Phone already in use for this company');
       }
       throw e;
     }
   }
 
+  async findAll(companyId: number) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+    });
+    if (!company) throw new NotFoundException('Company not found');
 
-  async findAll() {
     return this.prisma.client.findMany({
-      include: { bookings: true },
+      where: { companyId },
       orderBy: { id: 'asc' },
     });
   }
 
-  async findOne(id: number) {
-    const item = await this.prisma.client.findUnique({
-      where: { id },
+  async findOne(id: number, companyId: number) {
+    const item = await this.prisma.client.findFirst({
+      where: { id, companyId },
       include: { bookings: true },
     });
 
@@ -42,8 +68,12 @@ export class ClientService {
     return item;
   }
 
-  async update(id: number, dto: UpdateClientDto) {
-    await this.findOne(id); // проверка на существование
+  async update(id: number, dto: UpdateClientDto, companyId: number) {
+    const client = await this.prisma.client.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!client) throw new NotFoundException('Client not found');
 
     try {
       return await this.prisma.client.update({
@@ -51,6 +81,7 @@ export class ClientService {
         data: dto,
       });
     } catch (e: any) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (e?.code === 'P2002') {
         throw new BadRequestException('Phone already in use');
       }
@@ -58,16 +89,21 @@ export class ClientService {
     }
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, companyId: number) {
+    const client = await this.prisma.client.findFirst({
+      where: { id, companyId },
+    });
 
-    return this.prisma.client.delete({ where: { id } });
+    if (!client) throw new NotFoundException('Client not found');
+
+    return this.prisma.client.delete({
+      where: { id },
+    });
   }
 
-  // 🔍 Поиск по номеру телефона
-  async findByPhone(phone: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { phone },
+  async findByPhone(phone: string, companyId: number) {
+    const client = await this.prisma.client.findFirst({
+      where: { phone, companyId },
       include: { bookings: true },
     });
 
