@@ -17,10 +17,14 @@ import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User } from '../auth/types/AuthRequest';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('schedule')
 export class ScheduleController {
-  constructor(private readonly scheduleService: ScheduleService) {}
+  constructor(
+    private readonly scheduleService: ScheduleService,
+    private readonly prismaService: PrismaService,
+  ) {}
 
   @Get()
   findAll(@Query('hostname') hostname: string) {
@@ -76,13 +80,20 @@ export class ScheduleController {
     @Param('id', ParseIntPipe) specialistId: number,
     @Query('serviceId', ParseIntPipe) serviceId: number,
     @Query('date') date: string,
-    @User() user: { companyId: number }, // берём из JWT
+    @Query('hostname') hostname: string,
   ) {
+    const company = await this.prismaService.company.findUnique({
+      where: { domain: hostname },
+    });
+    if (!company) {
+      throw new Error('Invalid hostname');
+    }
+
     return this.scheduleService.getFreeSlots(
       specialistId,
       serviceId,
       date,
-      user.companyId,
+      company.id,
     );
   }
 }

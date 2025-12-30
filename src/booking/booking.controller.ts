@@ -21,8 +21,8 @@ export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
   @Post()
-  create(@Body() dto: CreateBookingDto) {
-    return this.bookingService.create(dto);
+  create(@Body() dto: CreateBookingDto, @Query('hostname') hostname: string) {
+    return this.bookingService.create(dto, hostname);
   }
 
   @Get()

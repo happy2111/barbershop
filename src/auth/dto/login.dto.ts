@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, Matches, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, Matches } from 'class-validator';
 
 export class LoginDto {
   @IsString()
@@ -10,5 +10,7 @@ export class LoginDto {
   @IsNotEmpty()
   password!: string;
 
+  @IsString()
+  @IsNotEmpty({ message: 'hostname is required' })
   hostname?: string;
 }

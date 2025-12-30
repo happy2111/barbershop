@@ -44,10 +44,10 @@ export class BookingService {
   //---------------------------------------------
   // CREATE
   //---------------------------------------------
-  async create(dto: CreateBookingDto) {
+  async create(dto: CreateBookingDto, hostname: string) {
     // Находим компанию по hostname
     const company = await this.prisma.company.findUnique({
-      where: { domain: dto.hostname },
+      where: { domain: hostname },
     });
     if (!company) throw new NotFoundException('Company not found');
 
