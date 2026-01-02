@@ -15,6 +15,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { BookingStatus } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../auth/types/AuthRequest';
 
 @Controller('booking')
 export class BookingController {
@@ -29,6 +30,7 @@ export class BookingController {
   findAll(@Query('hostname') hostname: string) {
     return this.bookingService.findAll(hostname);
   }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.bookingService.findOne(+id);
@@ -38,10 +40,10 @@ export class BookingController {
   @Patch(':id')
   update(
     @Param('id') id: number,
-    @Query('hostname') hostname: string,
+    @User() user: { companyId: number },
     @Body() dto: UpdateBookingDto,
   ) {
-    return this.bookingService.update(id, dto, hostname);
+    return this.bookingService.update(id, dto, user.companyId);
   }
 
   @Patch(':id/status/:status')

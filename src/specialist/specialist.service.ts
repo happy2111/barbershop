@@ -64,6 +64,7 @@ export class SpecialistService {
         photo: true,
         description: true,
         skills: true,
+        phone: true,
       },
     });
   }

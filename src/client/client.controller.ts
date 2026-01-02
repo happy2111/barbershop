@@ -49,7 +49,7 @@ export class ClientController {
   @Post()
   create(
     @Body() dto: CreateClientDto,
-    @Query('hostname') hostname: string, // передаём домен компании
+    @Query('hostname') hostname: string,
   ) {
     return this.clientService.create(dto, hostname);
   }
@@ -59,7 +59,7 @@ export class ClientController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateClientDto,
-    @User() user: { companyId: number }, // берем companyId из JWT
+    @User() user: { companyId: number },
   ) {
     return this.clientService.update(id, dto, user.companyId);
   }
@@ -69,7 +69,7 @@ export class ClientController {
   @Delete(':id')
   remove(
     @Param('id', ParseIntPipe) id: number,
-    @User() user: { companyId: number }, // берем companyId из JWT
+    @User() user: { companyId: number },
   ) {
     return this.clientService.remove(id, user.companyId);
   }

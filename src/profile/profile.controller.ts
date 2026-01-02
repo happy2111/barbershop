@@ -98,4 +98,18 @@ export class ProfileController {
   getPastBookings(@User() user: { id: number; companyId: number }) {
     return this.profileService.getPastBookings(user.id, user.companyId);
   }
+
+  @Patch('change-password')
+  changePassword(
+    @User() user: { id: number; companyId: number },
+    @Body('oldPassword') oldPassword: string,
+    @Body('newPassword') newPassword?: string,
+  ) {
+    return this.profileService.changePassword(
+      user.id,
+      user.companyId,
+      oldPassword,
+      newPassword,
+    );
+  }
 }

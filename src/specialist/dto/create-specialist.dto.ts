@@ -1,7 +1,6 @@
 import {
   IsEnum,
   IsOptional,
-  IsPhoneNumber,
   IsString,
   Matches,
   MinLength,

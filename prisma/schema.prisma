@@ -13,6 +13,9 @@ model company {
   domain    String?  @unique
   createdAt DateTime @default(now())
 
+  telegramChatId  String?
+  telegramEnabled Boolean @default(false)
+
   specialists       specialist[]
   services          service[]
   serviceCategories service_category[]
@@ -20,7 +23,23 @@ model company {
   bookings          booking[]
   schedules         schedule[]
 
+  telegramTokens TelegramLinkToken[]
+
   @@map("companies")
+}
+
+model TelegramLinkToken {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  company company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("telegram_link_tokens")
 }
 
 model specialist {

@@ -12,6 +12,8 @@ import { SpecialistServiceModule } from './specialist-service/specialist-service
 import { ScheduleModule } from './schedule/schedule.module';
 import { BookingModule } from './booking/booking.module';
 import { ProfileModule } from './profile/profile.module';
+import { TelegramModule } from './telegram/telegram.module';
+import { IntegrationModule } from './integration/integration.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { ProfileModule } from './profile/profile.module';
     ScheduleModule,
     BookingModule,
     ProfileModule,
+    TelegramModule,
+    IntegrationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

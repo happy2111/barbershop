@@ -7,10 +7,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { BookingStatus } from '@prisma/client';
+import { TelegramService } from '../telegram/telegram.service';
 
 @Injectable()
 export class BookingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   // ------------------------------------------
   // Проверка занятости времени
@@ -51,6 +55,7 @@ export class BookingService {
     });
     if (!company) throw new NotFoundException('Company not found');
 
+    // Проверяем доступность времени
     await this.ensureTimeSlotAvailable(
       dto.specialistId,
       dto.date,
@@ -64,10 +69,51 @@ export class BookingService {
       date: new Date(dto.date),
       companyId: company.id,
     };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    delete data.hostname; // удаляем hostname, чтобы не сохранять его в БД
+    delete data.hostname;
 
-    return this.prisma.booking.create({ data });
+    // Создаём бронирование
+    const booking = await this.prisma.booking.create({
+      data,
+      include: {
+        client: {
+          select: {
+            name: true,
+            phone: true,
+          },
+        },
+        specialist: {
+          select: {
+            name: true,
+          },
+        },
+        service: {
+          select: {
+            name: true,
+            price: true,
+          },
+        },
+      },
+    });
+
+    // -----------------------------
+    // Отправка уведомления в Telegram, если включено
+    // -----------------------------
+    if (company.telegramEnabled && company.telegramChatId) {
+      const message = `
+📌 *Новое бронирование!*
+
+Клиент: ${booking.client.name ?? 'Без имени'} (${booking.client.phone})
+Специалист: ${booking.specialist.name}
+Услуга: ${booking.service.name} (${booking.service.price} сум)
+Дата: ${booking.date.toLocaleDateString()}
+Время: ${booking.start_time} – ${booking.end_time}
+`;
+
+      await this.telegramService.sendMessage(company.telegramChatId, message);
+    }
+
+
+    return booking;
   }
 
   //---------------------------------------------
@@ -114,9 +160,9 @@ export class BookingService {
     return booking;
   }
 
-  async update(id: number, dto: UpdateBookingDto, hostname: string) {
+  async update(id: number, dto: UpdateBookingDto, companyId: number) {
     const company = await this.prisma.company.findUnique({
-      where: { domain: hostname },
+      where: { id: companyId },
     });
     if (!company) throw new NotFoundException('Company not found');
 

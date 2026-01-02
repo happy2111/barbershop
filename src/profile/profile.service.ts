@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // твой готовый сервис
 import { UpdateSpecialistDto } from './dto/update-specialist.dto';
 import { CreateScheduleDto } from './dto/schedule.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class ProfileService {
@@ -231,5 +232,41 @@ export class ProfileService {
       },
       orderBy: { date: 'desc' },
     });
+  }
+
+  async changePassword(
+    userId: number,
+    companyId: number,
+    oldPassword: string,
+    newPassword: string | undefined,
+  ) {
+    console.log(
+      oldPassword
+    )
+    const user = await this.prisma.specialist.findUnique({
+      where: { id: userId, companyId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+
+    const isValid: boolean = await bcrypt.compare(oldPassword, user.password);
+
+    if (!isValid) {
+      throw new NotFoundException('Invalid password');
+    }
+
+    if (newPassword) {
+      const hashed = await bcrypt.hash(newPassword, 10);
+
+      return this.prisma.specialist.update({
+        where: { id: userId },
+        data: { password: hashed },
+      });
+    }
+
+    return { message: 'Password valid' };
   }
 }
