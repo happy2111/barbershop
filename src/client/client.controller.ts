@@ -29,6 +29,16 @@ export class ClientController {
     return this.clientService.findAll(companyId);
   }
 
+  @Get('search/phone')
+  @UseGuards(JwtAuthGuard)
+  async findByPhone(
+    @Query('phone') phone: string,
+    @User() user: { companyId: number },
+  ) {
+    if (!phone) return [];
+    return this.clientService.findByPhone(phone, user.companyId);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id')
   findOne(
@@ -38,19 +48,8 @@ export class ClientController {
     return this.clientService.findOne(id, user.companyId);
   }
 
-  @Get('search/phone')
-  @UseGuards(JwtAuthGuard)
-  findByPhone(
-    @Query('phone') phone: string,
-    @User() user: { companyId: number },
-  ) {
-    return this.clientService.findByPhone(phone, user.companyId);
-  }
   @Post()
-  create(
-    @Body() dto: CreateClientDto,
-    @Query('hostname') hostname: string,
-  ) {
+  create(@Body() dto: CreateClientDto, @Query('hostname') hostname: string) {
     return this.clientService.create(dto, hostname);
   }
 

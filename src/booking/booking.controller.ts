@@ -16,6 +16,8 @@ import { UpdateBookingDto } from './dto/update-booking.dto';
 import { BookingStatus } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../auth/types/AuthRequest';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { BlockTimeDto } from '../profile/dto/block-time.dto';
 
 @Controller('booking')
 export class BookingController {
@@ -29,6 +31,15 @@ export class BookingController {
   @Get()
   findAll(@Query('hostname') hostname: string) {
     return this.bookingService.findAll(hostname);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('/blocked')
+  getBlockedTimes(@User() user: { id: number; companyId: number }) {
+    console.log(user);
+    console.log(typeof user.id, typeof user.companyId);
+
+    return this.bookingService.getBlockedTimes(user.companyId, user.id);
   }
 
   @Get(':id')
@@ -58,5 +69,16 @@ export class BookingController {
   @Delete(':id')
   remove(@Param('id') id: number) {
     return this.bookingService.remove(+id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Roles('ADMIN', 'SPECIALIST')
+  @Post('/block')
+  block(
+    @User() user: { id: number; companyId: number },
+    @Body()
+    dto: BlockTimeDto,
+  ) {
+    return this.bookingService.block(user.id, user.companyId, dto);
   }
 }

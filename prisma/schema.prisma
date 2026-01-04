@@ -136,18 +136,20 @@ model schedule {
 model booking {
   id           Int           @id @default(autoincrement())
   companyId    Int
-  clientId     Int
+  clientId     Int?
   specialistId Int
-  serviceId    Int
+  serviceId    Int?
   date         DateTime
   start_time   String
   end_time     String
   status       BookingStatus @default(PENDING)
+  isSystem     Boolean       @default(false)
+  reason       String?
 
   company    company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client     client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client     client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   specialist specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
-  service    service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service    service?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@map("bookings")
 }

@@ -8,6 +8,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { BookingStatus } from '@prisma/client';
 import { TelegramService } from '../telegram/telegram.service';
+import { BlockTimeDto } from '../profile/dto/block-time.dto';
 
 @Injectable()
 export class BookingService {
@@ -102,16 +103,15 @@ export class BookingService {
       const message = `
 📌 *Новое бронирование!*
 
-Клиент: ${booking.client.name ?? 'Без имени'} (${booking.client.phone})
+Клиент: ${booking?.client?.name ?? 'Без имени'} (${booking?.client?.phone})
 Специалист: ${booking.specialist.name}
-Услуга: ${booking.service.name} (${booking.service.price} сум)
+Услуга: ${booking?.service?.name} (${booking?.service?.price} сум)
 Дата: ${booking.date.toLocaleDateString()}
 Время: ${booking.start_time} – ${booking.end_time}
 `;
 
       await this.telegramService.sendMessage(company.telegramChatId, message);
     }
-
 
     return booking;
   }
@@ -127,7 +127,7 @@ export class BookingService {
     if (!company) throw new NotFoundException('Company not found');
 
     return this.prisma.booking.findMany({
-      where: { companyId: company.id },
+      where: { companyId: company.id, isSystem: false },
       include: {
         client: true,
         specialist: {
@@ -143,6 +143,24 @@ export class BookingService {
     });
   }
 
+  async getBlockedTimes(companyId: number, specialistId: number) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+    });
+
+    if (!company) throw new NotFoundException('Company not found');
+
+    return this.prisma.booking.findMany({
+      where: {
+        companyId: company.id,
+        specialistId,
+        isSystem: true,
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    });
+  }
   //---------------------------------------------
   // FIND ONE
   //---------------------------------------------
@@ -221,6 +239,29 @@ export class BookingService {
     return this.prisma.booking.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async block(specialistId: number, companyId: number, dto: BlockTimeDto) {
+    await this.ensureTimeSlotAvailable(
+      specialistId,
+      dto.date,
+      dto.start_time,
+      dto.end_time,
+      companyId,
+    );
+
+    await this.prisma.booking.create({
+      data: {
+        companyId,
+        specialistId,
+        date: new Date(dto.date),
+        start_time: dto.start_time,
+        end_time: dto.end_time,
+        status: BookingStatus.CONFIRMED,
+        isSystem: true,
+        ...(dto.reason ? { reason: dto.reason } : {}),
+      },
     });
   }
 }

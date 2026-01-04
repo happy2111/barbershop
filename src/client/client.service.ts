@@ -102,12 +102,16 @@ export class ClientService {
   }
 
   async findByPhone(phone: string, companyId: number) {
-    const client = await this.prisma.client.findFirst({
-      where: { phone, companyId },
+    return this.prisma.client.findMany({
+      where: {
+        companyId,
+        phone: {
+          contains: phone, // Ищет вхождение строки в номер
+          // mode: 'insensitive', // Если нужно игнорировать регистр (для цифр обычно не важно)
+        },
+      },
+      take: 10, // Ограничиваем до 10 результатов для скорости
       include: { bookings: true },
     });
-
-    if (!client) throw new NotFoundException('Client not found');
-    return client;
   }
 }

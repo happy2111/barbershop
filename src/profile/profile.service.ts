@@ -197,6 +197,7 @@ export class ProfileService {
     return this.prisma.booking.findMany({
       where: {
         specialistId,
+        isSystem: false,
         date: { gte: today },
         status: { in: ['PENDING', 'CONFIRMED'] },
       },
@@ -223,6 +224,7 @@ export class ProfileService {
 
     return this.prisma.booking.findMany({
       where: {
+        isSystem: false,
         specialistId,
         date: { lt: today },
       },
