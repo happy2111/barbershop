@@ -14,6 +14,7 @@ import { BookingModule } from './booking/booking.module';
 import { ProfileModule } from './profile/profile.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { IntegrationModule } from './integration/integration.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { IntegrationModule } from './integration/integration.module';
     ProfileModule,
     TelegramModule,
     IntegrationModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

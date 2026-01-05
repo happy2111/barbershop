@@ -54,6 +54,7 @@ export class ClientService {
 
     return this.prisma.client.findMany({
       where: { companyId },
+      include: { bookings: true },
       orderBy: { id: 'asc' },
     });
   }
