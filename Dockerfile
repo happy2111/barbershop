@@ -22,4 +22,5 @@ RUN npm install --omit=dev
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
 
-CMD ["node", "dist/src/main"]
+
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
