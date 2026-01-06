@@ -26,6 +26,8 @@ services:
       - hyco_network
     expose:
       - "5000"
+    volumes:
+      - uploads:/var/www/barbershop_uploads
 
   nginx:
     image: nginx:alpine
@@ -35,13 +37,16 @@ services:
       - "80:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - uploads:/var/www/barbershop_uploads:ro
     depends_on:
       - backend
     networks:
       - hyco_network
 
+
 volumes:
   postgres_data:
+  uploads:
 
 networks:
   hyco_network:
