@@ -1,7 +1,9 @@
+version: "3.9"
+
 services:
   postgres:
     image: postgres:16
-    container_name: barbershop_postgres
+    container_name: hyco_postgres
     restart: always
     environment:
       POSTGRES_USER: hy
@@ -9,19 +11,37 @@ services:
       POSTGRES_DB: barbershop_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - hyco_network
 
-  nestjs:
+  backend:
     build: .
-    container_name: barbershop_nestjs
+    container_name: hyco_backend
     restart: always
     env_file:
       - .env
-    ports:
-      - "5000:5000"
     depends_on:
       - postgres
+    networks:
+      - hyco_network
+    expose:
+      - "5000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: hyco_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    networks:
+      - hyco_network
 
 volumes:
   postgres_data:
+
+networks:
+  hyco_network:
