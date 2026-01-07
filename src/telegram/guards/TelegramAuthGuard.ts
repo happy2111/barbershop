@@ -12,31 +12,25 @@ export class TelegramAuthGuard implements CanActivate {
   constructor(private telegramService: TelegramService) {}
 
   canActivate(context: ExecutionContext): boolean {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const request = context.switchToHttp().getRequest();
-    // Извлекаем заголовок, который мы настроили во фронтенде (Axios)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
     const initData = request.headers['x-telegram-init-data'];
 
-    if (!initData) {
-      // Если данных нет, мы не прерываем (может это обычный браузер),
-      // либо выбрасываем ошибку, если вход только через TG
-      return true;
+    console.log('--- GUARD LOG START ---');
+    console.log('X-Telegram-Init-Data header exists:', !!initData);
+    if (initData) {
+      console.log('Raw Header Value:', initData);
     }
+    console.log('--- GUARD LOG END ---');
 
+    if (!initData) return true; // Разрешаем, если заголовка нет (обычный браузер)
 
     try {
-      const botToken = process.env.BOT_TOKEN!; // Токен вашего бота
-      const validatedData = this.telegramService.verifyTelegramInitData(
-        initData,
-        botToken,
-      );
-
-      // Сохраняем проверенные данные в объект запроса
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const validatedData =
+        this.telegramService.verifyTelegramInitData(initData);
       request.telegramUser = validatedData;
       return true;
     } catch (e) {
+      console.error('Guard verification failed:', e.message);
       throw new UnauthorizedException('Invalid Telegram data');
     }
   }
