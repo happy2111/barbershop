@@ -113,7 +113,7 @@ model client {
   name      String?
   phone     String
 
-  telegramId        BigInt? @unique
+  telegramId        BigInt?
   telegramUsername  String?
   telegramFirstName String?
   telegramLastName  String?
