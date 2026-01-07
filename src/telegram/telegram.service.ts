@@ -21,75 +21,46 @@ export class TelegramService {
     this.bot = new TelegramBot(process.env.BOT_TOKEN!, { polling: false });
   }
 
-  public verifyTelegramInitData(initDataRaw: string): any {
-    // 1. Очистка входной строки от лишних пробелов по краям
-    const rawString = initDataRaw.trim();
-    const botToken = process.env.BOT_TOKEN?.trim();
-    console.log(botToken);
-    console.log(initDataRaw);
+  verifyTelegramInitData(initDataRaw: string) {
+    const botToken = process.env.BOT_TOKEN;
     if (!botToken) throw new Error('BOT_TOKEN missing');
+
+    const params = new URLSearchParams(initDataRaw);
+    const hash = params.get('hash');
+
+    if (!hash) {
+      throw new UnauthorizedException('Hash missing');
+    }
+
+    params.delete('hash');
+
+    // ⚠️ НИЧЕГО НЕ decode !!!
+    const dataCheckString = [...params.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n');
 
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(botToken)
       .digest();
 
-    const parts = rawString.split('&');
-    const hashPart = parts.find((p) => p.startsWith('hash='));
-    const hash = hashPart?.split('=')[1];
-
-    if (!hash) throw new UnauthorizedException('Hash missing');
-
-    // 2. Функция для сборки проверочной строки
-    const buildCheckString = (shouldUnescapeUser: boolean) => {
-      const pairs = parts
-        .filter((p) => !p.startsWith('hash=') && !p.startsWith('signature='))
-        .map((p) => {
-          const pos = p.indexOf('=');
-          const key = p.substring(0, pos);
-          let value = decodeURIComponent(p.substring(pos + 1));
-
-          // Если флаг активен, превращаем \/ в /
-          if (key === 'user' && shouldUnescapeUser) {
-            value = value.replace(/\\\//g, '/');
-          }
-          return `${key}=${value}`;
-        });
-      return pairs.sort().join('\n');
-    };
-
-    // Вариант А: Как есть (с \/)
-    const stringA = buildCheckString(false);
-    const hmacA = crypto
+    const calculatedHash = crypto
       .createHmac('sha256', secretKey)
-      .update(stringA)
+      .update(dataCheckString)
       .digest('hex');
 
-    // Вариант Б: Нормализованный JSON (с /)
-    const stringB = buildCheckString(true);
-    const hmacB = crypto
-      .createHmac('sha256', secretKey)
-      .update(stringB)
-      .digest('hex');
-
-    console.log('--- FINAL VALIDATION ATTEMPT ---');
-    console.log('Expected Hash:', hash);
-    console.log('HMAC (Option A - escaped):', hmacA);
-    console.log('HMAC (Option B - unescaped):', hmacB);
-
-    let finalResult: string | null = null;
-    if (hmacA === hash) finalResult = stringA;
-    else if (hmacB === hash) finalResult = stringB;
-
-    if (!finalResult) {
-      throw new UnauthorizedException('Hash mismatch after all attempts');
+    if (calculatedHash !== hash) {
+      throw new UnauthorizedException('Invalid Telegram data');
     }
 
-    console.log('SUCCESS! Match found.');
+    // ✅ ТОЛЬКО ПОСЛЕ проверки
+    const result: any = Object.fromEntries(params.entries());
+    if (result.user) {
+      result.user = JSON.parse(decodeURIComponent(result.user));
+    }
 
-    const params = Object.fromEntries(new URLSearchParams(rawString).entries());
-    if (params.user) params.user = JSON.parse(params.user);
-    return params;
+    return result;
   }
   // ---------------------------
   // Генерация одноразового токена для self-service
