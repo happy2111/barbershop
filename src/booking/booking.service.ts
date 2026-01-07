@@ -126,18 +126,29 @@ export class BookingService {
       // --- УВЕДОМЛЕНИЕ КЛИЕНТУ (в личные сообщения) ---
       // Проверяем, есть ли у клиента telegramId
       if (booking.client?.telegramId) {
+        // Определяем имя для обращения: приоритет на имя из БД, затем на имя из Telegram
+        const displayName =
+          booking.client.name || 'клиент';
+
         const clientMessage = `
-Привет, ${booking.client.name || 'дорогой клиент'}! 👋
+👋 Привет, ${displayName}! 
+
 Вы успешно записались в *${company.name}*.
 
-Специалист: ${booking.specialist.name}
-Услуга: ${booking.service?.name}
-Дата: ${booking.date.toLocaleDateString()}
-Время: ${booking.start_time}
+*Детали вашей записи:*
+*Специалист:* ${booking.specialist.name}
+*Услуга:* ${booking.service?.name ?? 'Не указана'}
+*Дата:* ${booking.date.toLocaleDateString('ru-RU')}
+*Время:* ${booking.start_time}
+
+🔔 *Статус записи:* Вы всегда можете проверить актуальный статус вашей брони по ссылке ниже. Если специалист подтвердит или изменит время, информация обновится там:
+🔗 https://${company.domain}/booking/${booking.id}
+
+Спасибо, что выбрали нас!
 `;
 
         await this.telegramService.sendMessage(
-          booking.client.telegramId.toString(), // BigInt нужно перевести в string
+          booking.client.telegramId.toString(),
           clientMessage,
           company.telegramBotToken,
         );
