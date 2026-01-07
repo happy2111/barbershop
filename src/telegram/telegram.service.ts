@@ -25,70 +25,70 @@ export class TelegramService {
     const token = process.env.BOT_TOKEN?.trim();
     if (!token) throw new UnauthorizedException('Bot token not found');
 
+    // 1. Парсим строку
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
-
     if (!hash) throw new UnauthorizedException('Hash is missing');
 
-    // 1. Создаем массив ключей, исключая hash и signature
+    // 2. Извлекаем все ключи, КРОМЕ hash
+    // ВАЖНО: Мы НЕ исключаем signature для проверки hash,
+    // так как в документации для проверки через HASH сказано "все полученные поля"
     const keys = Array.from(urlParams.keys())
-      .filter((key) => key !== 'hash' && key !== 'signature')
+      .filter((key) => key !== 'hash')
       .sort();
 
-    // 2. Формируем строку.
-    // ВАЖНО: Мы берем значение через urlParams.get(),
-    // это автоматически декодирует %2F в / и т.д.
+    // 3. Собираем строку проверки
     const dataCheckString = keys
-      .map((key) => {
-        const value = urlParams.get(key);
-        return `${key}=${value}`;
-      })
+      .map((key) => `${key}=${urlParams.get(key)}`)
       .join('\n');
 
-    // 3. Вычисляем Secret Key
+    // 4. Вычисляем Secret Key (HMAC токена на ключе "WebAppData")
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(token)
       .digest();
 
-    // 4. Вычисляем HMAC
+    // 5. Вычисляем HMAC всей строки
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
-    // Логируем для финальной проверки
     if (hmac !== hash) {
-      console.log('--- FINAL ATTEMPT ---');
-      console.log('Data Check String:\n', dataCheckString);
-      console.log('Computed HMAC:', hmac);
-      console.log('Expected Hash:', hash);
+      // ПОПЫТКА №2: Если не совпало, пробуем исключить signature
+      // (иногда новые SDK его добавляют, но не включают в hash)
+      const keysNoSig = keys.filter((k) => k !== 'signature');
+      const dataCheckStringNoSig = keysNoSig
+        .map((key) => `${key}=${urlParams.get(key)}`)
+        .join('\n');
 
-      // Если не совпало, пробуем один хак со слешами (иногда помогает для JSON)
-      const altDataCheckString = dataCheckString.replace(/\//g, '\\/');
-      const altHmac = crypto
+      const hmacNoSig = crypto
         .createHmac('sha256', secretKey)
-        .update(altDataCheckString)
+        .update(dataCheckStringNoSig)
         .digest('hex');
 
-      if (altHmac === hash) {
-        console.log('Match found with escaped slashes!');
-        return this.parseResult(urlParams);
+      if (hmacNoSig === hash) {
+        return this.finalizeData(urlParams);
       }
 
+      console.log('--- VALIDATION FAILED ---');
+      console.log('Final String used:\n', dataCheckStringNoSig);
+      console.log('Computed:', hmacNoSig);
+      console.log('Expected:', hash);
       throw new UnauthorizedException('Telegram initData verification failed');
     }
 
-    return this.parseResult(urlParams);
+    return this.finalizeData(urlParams);
   }
 
-  private parseResult(urlParams: URLSearchParams) {
+  private finalizeData(urlParams: URLSearchParams) {
     const result = Object.fromEntries(urlParams.entries());
     if (result.user) {
       result.user = JSON.parse(result.user);
     }
     return result;
   }
+
   // ---------------------------
   // Генерация одноразового токена для self-service
   // ---------------------------
