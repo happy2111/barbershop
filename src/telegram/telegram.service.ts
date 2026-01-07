@@ -25,55 +25,68 @@ export class TelegramService {
     const token = process.env.BOT_TOKEN?.trim();
     if (!token) throw new UnauthorizedException('Bot token not found');
 
-    const params = new URLSearchParams(initData);
-    const hash = params.get('hash');
+    const urlParams = new URLSearchParams(initData);
+    const hash = urlParams.get('hash');
+
     if (!hash) throw new UnauthorizedException('Hash is missing');
 
-    // 1. Собираем пары ключ=значение вручную
-    const dataPairs = initData
-      .split('&')
-      .filter(
-        (part) => !part.startsWith('hash=') && !part.startsWith('signature='),
-      )
-      .map((part) => {
-        const pos = part.indexOf('=');
-        const key = part.substring(0, pos);
-        let value = decodeURIComponent(part.substring(pos + 1));
+    // 1. Создаем массив ключей, исключая hash и signature
+    const keys = Array.from(urlParams.keys())
+      .filter((key) => key !== 'hash' && key !== 'signature')
+      .sort();
 
-        // КРИТИЧЕСКИЙ МОМЕНТ:
-        // Если это поле user, убираем экранирование слешей ( \/ -> / ),
-        // так как Telegram подписывает именно чистый JSON
-        if (key === 'user') {
-          value = value.replace(/\\\//g, '/');
-        }
-
+    // 2. Формируем строку.
+    // ВАЖНО: Мы берем значение через urlParams.get(),
+    // это автоматически декодирует %2F в / и т.д.
+    const dataCheckString = keys
+      .map((key) => {
+        const value = urlParams.get(key);
         return `${key}=${value}`;
-      });
+      })
+      .join('\n');
 
-    // 2. Сортируем и соединяем через \n
-    const dataCheckString = dataPairs.sort().join('\n');
-
-    // 3. Вычисляем HMAC
+    // 3. Вычисляем Secret Key
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(token)
       .digest();
 
+    // 4. Вычисляем HMAC
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
+    // Логируем для финальной проверки
     if (hmac !== hash) {
-      console.log('--- FINAL ATTEMPT DEBUG ---');
+      console.log('--- FINAL ATTEMPT ---');
       console.log('Data Check String:\n', dataCheckString);
       console.log('Computed HMAC:', hmac);
       console.log('Expected Hash:', hash);
+
+      // Если не совпало, пробуем один хак со слешами (иногда помогает для JSON)
+      const altDataCheckString = dataCheckString.replace(/\//g, '\\/');
+      const altHmac = crypto
+        .createHmac('sha256', secretKey)
+        .update(altDataCheckString)
+        .digest('hex');
+
+      if (altHmac === hash) {
+        console.log('Match found with escaped slashes!');
+        return this.parseResult(urlParams);
+      }
+
       throw new UnauthorizedException('Telegram initData verification failed');
     }
 
-    const result = Object.fromEntries(params.entries());
-    if (result.user) result.user = JSON.parse(result.user);
+    return this.parseResult(urlParams);
+  }
+
+  private parseResult(urlParams: URLSearchParams) {
+    const result = Object.fromEntries(urlParams.entries());
+    if (result.user) {
+      result.user = JSON.parse(result.user);
+    }
     return result;
   }
   // ---------------------------
