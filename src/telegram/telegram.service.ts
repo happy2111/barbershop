@@ -25,50 +25,59 @@ export class TelegramService {
     initData: string,
     botToken: string,
   ): TelegramInitData {
-    // 1. Превращаем строку в объект (URLSearchParams удобнее и безопаснее split)
     const searchParams = new URLSearchParams(initData);
-    const params = Object.fromEntries(searchParams.entries());
-
-    // 2. Извлекаем hash и проверяем его наличие
-    const { hash, ...dataExceptHash } = params;
-
-
+    const hash = searchParams.get('hash');
 
     if (!hash) {
       throw new UnauthorizedException('No hash in initData');
     }
 
-    // 3. Формируем data_check_string
-    // Сортируем ключи алфавитно и соединяем в формат key=value\n
-    const dataCheckString = Object.keys(dataExceptHash)
+    // 1. Собираем ключи, исключая hash И signature
+    const keys = Array.from(searchParams.keys()).filter(
+      (key) => key !== 'hash' && key !== 'signature',
+    );
+
+    // 2. Сортируем ключи и создаем строку
+    const dataCheckString = keys
       .sort()
-      .map((key) => `${key}=${dataExceptHash[key]}`)
+      .map((key) => `${key}=${searchParams.get(key)}`)
       .join('\n');
 
-    // 4. Вычисляем проверочный HMAC
-    // Сначала создаем secret_key на основе токена бота
+    // 3. Вычисляем secretKey (WebAppData)
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(botToken)
       .digest();
 
-    // Затем вычисляем HMAC от dataCheckString
+    // 4. Вычисляем HMAC
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
-    console.log('Data Check String:', dataCheckString);
+    // Логи для отладки
+    console.log('--- VALIDATION START ---');
+    console.log('Data Check String:\n', dataCheckString);
     console.log('Computed HMAC:', hmac);
     console.log('Expected Hash:', hash);
+    console.log('--- VALIDATION END ---');
 
-    // 5. Сравниваем
     if (hmac !== hash) {
       throw new UnauthorizedException('Telegram initData verification failed');
     }
 
+    // Возвращаем объект, распарсив user JSON
+    const params = Object.fromEntries(searchParams.entries());
+    if (params.user) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        params.user = JSON.parse(params.user);
+      } catch (e) {
+        // оставляем как есть если не JSON
+      }
+    }
 
-    return params as TelegramInitData;
+    return params as unknown as TelegramInitData;
   }
 
   // ---------------------------
