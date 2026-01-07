@@ -22,48 +22,34 @@ export class TelegramService {
   }
 
   public verifyTelegramInitData(initDataRaw: string): any {
-    console.log('--- SERVICE LOG START ---');
-
     const botToken = process.env.BOT_TOKEN?.trim();
-    if (!botToken) {
-      console.error('CRITICAL: BOT_TOKEN is missing in process.env');
-      throw new Error('BOT_TOKEN is not set in environment');
-    }
+    if (!botToken) throw new Error('BOT_TOKEN missing');
 
-    // Логируем часть токена для сверки (первые 5 и последние 5 символов)
-    console.log(
-      `Using BOT_TOKEN: ${botToken.substring(0, 5)}...${botToken.slice(-5)}`,
-    );
-
-    // 1. Secret Key
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(botToken)
       .digest();
 
-    // 2. Парсим параметры
-    const params = new URLSearchParams(initDataRaw);
-    const providedHash = params.get('hash');
-    console.log('Provided Hash from Telegram:', providedHash);
+    // 1. Разбиваем строку вручную, чтобы не терять спецсимволы
+    const parts = initDataRaw.split('&');
+    const hashPart = parts.find((p) => p.startsWith('hash='));
+    const hash = hashPart?.split('=')[1];
 
-    if (!providedHash) {
-      console.error('FAIL: No hash found in initData');
-      throw new UnauthorizedException('Telegram hash is missing');
-    }
+    if (!hash) throw new UnauthorizedException('Hash missing');
 
-    // 3. Формируем dataCheckString
-    const keys = Array.from(params.keys())
-      .filter((k) => k !== 'hash' && k !== 'signature')
-      .sort();
-    console.log('Fields included in check:', keys.join(', '));
+    // 2. Собираем данные для проверки
+    const dataPairs = parts
+      .filter((p) => !p.startsWith('hash=') && !p.startsWith('signature='))
+      .map((p) => {
+        const pos = p.indexOf('=');
+        const key = p.substring(0, pos);
+        // Важно: декодируем только один раз, сохраняя структуру JSON
+        const value = decodeURIComponent(p.substring(pos + 1));
+        return `${key}=${value}`;
+      });
 
-    const dataCheckString = keys
-      .map((key) => `${key}=${params.get(key)}`)
-      .join('\n');
-
-    console.log('--- GENERATED DATA_CHECK_STRING ---');
-    console.log(dataCheckString);
-    console.log('--- END OF STRING ---');
+    // 3. Сортируем пары по алфавиту
+    const dataCheckString = dataPairs.sort().join('\n');
 
     // 4. Считаем HMAC
     const hmac = crypto
@@ -71,29 +57,22 @@ export class TelegramService {
       .update(dataCheckString)
       .digest('hex');
 
-    console.log('Computed HMAC:', hmac);
-    console.log(
-      'Comparison Result:',
-      hmac === providedHash ? 'MATCH ✅' : 'MISMATCH ❌',
+    // ЛОГ ДЛЯ ПРОВЕРКИ
+    if (hmac !== hash) {
+      console.log('--- DEBUG ---');
+      console.log('Final String:\n', dataCheckString);
+      console.log('HMAC:', hmac);
+      console.log('Expected:', hash);
+      throw new UnauthorizedException('Hash mismatch');
+    }
+
+    // 5. Возвращаем результат
+    const params = Object.fromEntries(
+      new URLSearchParams(initDataRaw).entries(),
     );
-
-    if (hmac !== providedHash) {
-      // Последний шанс: пробуем без декодирования (иногда помогает)
-      console.log('Attempting alternative verification (raw parts)...');
-      // ... (код альтернативы если нужно)
-      throw new UnauthorizedException('Telegram data hash verification failed');
-    }
-
-    const result = Object.fromEntries(params.entries());
-    if (result.user) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      result.user = JSON.parse(result.user);
-      // @ts-ignore
-      console.log('Successfully parsed Telegram User ID:', result.user.id);
-    }
-
-    console.log('--- SERVICE LOG END ---');
-    return result;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    if (params.user) params.user = JSON.parse(params.user);
+    return params;
   }
 
   // ---------------------------
