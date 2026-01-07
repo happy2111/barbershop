@@ -21,63 +21,71 @@ export class TelegramService {
     this.bot = new TelegramBot(process.env.BOT_TOKEN!, { polling: false });
   }
 
-  public verifyTelegramInitData(
-    initData: string,
-    botToken: string,
-  ): TelegramInitData {
-    const searchParams = new URLSearchParams(initData);
-    const hash = searchParams.get('hash');
+  public verifyTelegramInitData(initData: string, botToken: string): any {
+    // 1. Разбираем строку вручную, чтобы сохранить точность данных
+    const parts = initData.split('&');
+    const hashPart = parts.find((p) => p.startsWith('hash='));
+    const hash = hashPart ? hashPart.split('=')[1] : null;
 
     if (!hash) {
-      throw new UnauthorizedException('No hash in initData');
+      throw new UnauthorizedException('Hash is missing');
     }
 
-    // 1. Собираем ключи, исключая hash И signature
-    const keys = Array.from(searchParams.keys()).filter(
-      (key) => key !== 'hash' && key !== 'signature',
-    );
+    // 2. Собираем все пары ключ=значение, кроме hash и signature
+    // Важно: используем decodeURIComponent, чтобы получить "чистое" значение, как его видит JS
+    const dataPairs = parts
+      .filter((p) => !p.startsWith('hash=') && !p.startsWith('signature='))
+      .map((p) => {
+        const [key, ...valueParts] = p.split('=');
+        return {
+          key,
+          value: decodeURIComponent(valueParts.join('=')),
+        };
+      });
 
-    // 2. Сортируем ключи и создаем строку
-    const dataCheckString = keys
-      .sort()
-      .map((key) => `${key}=${searchParams.get(key)}`)
+    // 3. Сортируем по ключу алфавитно
+    dataPairs.sort((a, b) => a.key.localeCompare(b.key));
+
+    // 4. Формируем строку проверки
+    const dataCheckString = dataPairs
+      .map(({ key, value }) => `${key}=${value}`)
       .join('\n');
 
-    // 3. Вычисляем secretKey (WebAppData)
+    // 5. Вычисляем Secret Key (WebAppData)
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(botToken)
       .digest();
 
-    // 4. Вычисляем HMAC
+    // 6. Вычисляем HMAC
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
-    // Логи для отладки
-    console.log('--- VALIDATION START ---');
+    // ЛОГИ ДЛЯ СВЕРКИ (сравните их очень внимательно)
+    console.log('--- FINAL ATTEMPT ---');
     console.log('Data Check String:\n', dataCheckString);
     console.log('Computed HMAC:', hmac);
     console.log('Expected Hash:', hash);
-    console.log('--- VALIDATION END ---');
 
     if (hmac !== hash) {
       throw new UnauthorizedException('Telegram initData verification failed');
     }
 
-    // Возвращаем объект, распарсив user JSON
-    const params = Object.fromEntries(searchParams.entries());
-    if (params.user) {
+    // Возвращаем объект для дальнейшего использования
+    const result = Object.fromEntries(
+      dataPairs.map(({ key, value }) => [key, value]),
+    );
+
+    if (result.user) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        params.user = JSON.parse(params.user);
-      } catch (e) {
-        // оставляем как есть если не JSON
-      }
+        result.user = JSON.parse(result.user as string);
+      } catch (e) {}
     }
 
-    return params as unknown as TelegramInitData;
+    return result;
   }
 
   // ---------------------------
