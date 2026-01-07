@@ -1,7 +1,17 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import TelegramBot from 'node-telegram-bot-api';
 import { randomBytes } from 'crypto';
+import * as crypto from 'crypto';
+
+export interface TelegramInitData {
+  hash: string;
+  [key: string]: string; // Для остальных полей (user, auth_date и т.д.)
+}
 
 @Injectable()
 export class TelegramService {
@@ -9,6 +19,49 @@ export class TelegramService {
 
   constructor(private prisma: PrismaService) {
     this.bot = new TelegramBot(process.env.BOT_TOKEN!, { polling: false });
+  }
+
+  public verifyTelegramInitData(
+    initData: string,
+    botToken: string,
+  ): TelegramInitData {
+    // 1. Превращаем строку в объект (URLSearchParams удобнее и безопаснее split)
+    const searchParams = new URLSearchParams(initData);
+    const params = Object.fromEntries(searchParams.entries());
+
+    // 2. Извлекаем hash и проверяем его наличие
+    const { hash, ...dataExceptHash } = params;
+
+    if (!hash) {
+      throw new UnauthorizedException('No hash in initData');
+    }
+
+    // 3. Формируем data_check_string
+    // Сортируем ключи алфавитно и соединяем в формат key=value\n
+    const dataCheckString = Object.keys(dataExceptHash)
+      .sort()
+      .map((key) => `${key}=${dataExceptHash[key]}`)
+      .join('\n');
+
+    // 4. Вычисляем проверочный HMAC
+    // Сначала создаем secret_key на основе токена бота
+    const secretKey = crypto
+      .createHmac('sha256', 'WebAppData')
+      .update(botToken)
+      .digest();
+
+    // Затем вычисляем HMAC от dataCheckString
+    const hmac = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    // 5. Сравниваем
+    if (hmac !== hash) {
+      throw new UnauthorizedException('Telegram initData verification failed');
+    }
+
+    return params as TelegramInitData;
   }
 
   // ---------------------------

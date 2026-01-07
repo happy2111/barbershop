@@ -111,6 +111,14 @@ model client {
   name      String?
   phone     String
 
+  telegramId        BigInt? @unique
+  telegramUsername  String?
+  telegramFirstName String?
+  telegramLastName  String?
+  telegramLang      String?
+
+  createdAt DateTime @default(now())
+
   company  company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   bookings booking[]
 

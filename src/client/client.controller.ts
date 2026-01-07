@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ClientService } from './client.service';
@@ -17,8 +18,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User } from '../auth/types/AuthRequest';
+import { TelegramAuthGuard } from '../telegram/guards/TelegramAuthGuard';
+import any = jasmine.any;
 
 @Controller('client')
+@UseGuards(TelegramAuthGuard)
 export class ClientController {
   constructor(private readonly clientService: ClientService) {}
 
@@ -49,8 +53,14 @@ export class ClientController {
   }
 
   @Post()
-  create(@Body() dto: CreateClientDto, @Query('hostname') hostname: string) {
-    return this.clientService.create(dto, hostname);
+  create(
+    @Body() dto: CreateClientDto,
+    @Query('hostname') hostname: string,
+    @Req() req: any,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
+    const tgData: any = req.telegramUser;
+    return this.clientService.create(dto, hostname, tgData);
   }
 
   @UseGuards(JwtAuthGuard)
