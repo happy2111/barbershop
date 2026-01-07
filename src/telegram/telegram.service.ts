@@ -32,6 +32,8 @@ export class TelegramService {
     // 2. Извлекаем hash и проверяем его наличие
     const { hash, ...dataExceptHash } = params;
 
+
+
     if (!hash) {
       throw new UnauthorizedException('No hash in initData');
     }
@@ -56,10 +58,15 @@ export class TelegramService {
       .update(dataCheckString)
       .digest('hex');
 
+    console.log('Data Check String:', dataCheckString);
+    console.log('Computed HMAC:', hmac);
+    console.log('Expected Hash:', hash);
+
     // 5. Сравниваем
     if (hmac !== hash) {
       throw new UnauthorizedException('Telegram initData verification failed');
     }
+
 
     return params as TelegramInitData;
   }

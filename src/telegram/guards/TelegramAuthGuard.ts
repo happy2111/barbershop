@@ -24,6 +24,7 @@ export class TelegramAuthGuard implements CanActivate {
       return true;
     }
 
+
     try {
       const botToken = process.env.BOT_TOKEN!; // Токен вашего бота
       const validatedData = this.telegramService.verifyTelegramInitData(

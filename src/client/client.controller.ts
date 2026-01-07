@@ -19,7 +19,6 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User } from '../auth/types/AuthRequest';
 import { TelegramAuthGuard } from '../telegram/guards/TelegramAuthGuard';
-import any = jasmine.any;
 
 @Controller('client')
 @UseGuards(TelegramAuthGuard)
