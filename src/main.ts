@@ -4,6 +4,17 @@ import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
+
+
+declare global {
+  interface BigInt {
+    toJSON(): string;
+  }
+}
+
+BigInt.prototype.toJSON = function (this: bigint) {
+  return this.toString();
+};
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
