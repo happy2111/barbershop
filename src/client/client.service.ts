@@ -72,7 +72,7 @@ export class ClientService {
     };
 
     try {
-      return await this.prisma.client.upsert({
+      const client = await this.prisma.client.upsert({
         where: {
           companyId_phone: {
             companyId: company.id,
@@ -90,6 +90,11 @@ export class ClientService {
           ...telegramFields,
         },
       });
+
+      return {
+        ...client,
+        telegramId: client.telegramId?.toString() ?? null,
+      };
     } catch (e: unknown) {
       // Проверка кода ошибки Prisma без использования any
       if (typeof e === 'object' && e !== null && 'code' in e) {
