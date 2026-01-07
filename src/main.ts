@@ -4,8 +4,6 @@ import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
-
-
 declare global {
   interface BigInt {
     toJSON(): string;

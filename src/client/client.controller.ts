@@ -21,7 +21,6 @@ import { User } from '../auth/types/AuthRequest';
 import { TelegramAuthGuard } from '../telegram/guards/TelegramAuthGuard';
 
 @Controller('client')
-@UseGuards(TelegramAuthGuard)
 export class ClientController {
   constructor(private readonly clientService: ClientService) {}
 
@@ -52,6 +51,7 @@ export class ClientController {
   }
 
   @Post()
+  @UseGuards(TelegramAuthGuard)
   create(
     @Body() dto: CreateClientDto,
     @Query('hostname') hostname: string,

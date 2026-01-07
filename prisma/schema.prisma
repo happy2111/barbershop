@@ -13,6 +13,8 @@ model company {
   domain    String?  @unique
   createdAt DateTime @default(now())
 
+  telegramBotToken String?
+
   telegramChatId  String?
   telegramEnabled Boolean @default(false)
 
