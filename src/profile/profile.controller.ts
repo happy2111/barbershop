@@ -24,6 +24,8 @@ import { User } from '../auth/types/AuthRequest';
 const UPLOAD_PATH = '/var/www/barbershop_uploads/specialist/photo';
 const UPLOAD_URL_PREFIX = '/uploads/specialist/photo';
 
+
+
 function fileInterceptorConfig() {
   return {
     storage: diskStorage({
