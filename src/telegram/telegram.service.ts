@@ -22,49 +22,55 @@ export class TelegramService {
   }
 
   public verifyTelegramInitData(initData: string): any {
-    // Используем токен, который мы уже проверили в конструкторе
-    const token = process.env.BOT_TOKEN;
+    const token = process.env.BOT_TOKEN?.trim();
     if (!token) throw new UnauthorizedException('Bot token not found');
 
-    const cleanToken = token.trim();
-
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get('hash');
-
+    // 1. Извлекаем hash вручную из строки
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
     if (!hash) throw new UnauthorizedException('Hash is missing');
 
-    const dataPairs: string[] = [];
-    urlParams.forEach((value, key) => {
-      if (key !== 'hash' && key !== 'signature') {
-        dataPairs.push(`${key}=${value}`);
-      }
-    });
+    // 2. Формируем пары ключ=значение
+    // Берем оригинальную строку initData и разбиваем её, чтобы не потерять экранирование
+    const dataCheckString = initData
+      .split('&')
+      .filter(
+        (part) => !part.startsWith('hash=') && !part.startsWith('signature='),
+      )
+      .map((part) => {
+        const [key, value] = part.split('=');
+        // Декодируем значение только один раз (как делает браузер)
+        return `${key}=${decodeURIComponent(value)}`;
+      })
+      .sort() // Сортируем алфавитно
+      .join('\n');
 
-    const dataCheckString = dataPairs.sort().join('\n');
-
+    // 3. Вычисляем Secret Key (всегда фиксированная строка "WebAppData")
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(cleanToken)
+      .update(token)
       .digest();
 
+    // 4. Вычисляем итоговый HMAC
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
     if (hmac !== hash) {
-      // Теперь лог покажет реальные символы токена
-      console.log('--- ERROR DETAILS ---');
-      console.log(
-        'Bot Token Used:',
-        `${cleanToken.substring(0, 4)}...${cleanToken.slice(-4)}`,
-      );
+      console.log('--- FINAL DEBUG ---');
+      console.log('Data Check String:\n', dataCheckString);
+      console.log('Computed HMAC:', hmac);
+      console.log('Expected Hash:', hash);
       throw new UnauthorizedException('Telegram initData verification failed');
     }
 
-    const result = Object.fromEntries(urlParams.entries());
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    if (result.user) result.user = JSON.parse(result.user);
+    // Возвращаем объект для работы в контроллере
+    const result = Object.fromEntries(params.entries());
+    if (result.user) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      result.user = JSON.parse(result.user);
+    }
     return result;
   }
   // ---------------------------
