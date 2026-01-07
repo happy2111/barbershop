@@ -22,61 +22,47 @@ export class TelegramService {
   }
 
   public verifyTelegramInitData(initData: string, botToken: string): any {
-    const cleanToken = botToken.trim().replace(/['"]/g, '');
+    const cleanToken = botToken.trim();
 
-    // 1. Разбиваем строку по символу &
-    const parts = initData.split('&');
-
-    // 2. Находим hash отдельно
-    const hashPart = parts.find((p) => p.startsWith('hash='));
-    const hash = hashPart ? hashPart.split('=')[1] : null;
+    // 1. Разбиваем строку на части
+    const urlParams = new URLSearchParams(initData);
+    const hash = urlParams.get('hash');
 
     if (!hash) {
       throw new UnauthorizedException('Hash is missing');
     }
 
-    // 3. Формируем список пар КЛЮЧ=ЗНАЧЕНИЕ (кроме hash и signature)
-    // ВАЖНО: Мы используем decodeURIComponent только один раз для каждого значения
-    const dataPairs = parts
-      .filter((p) => !p.startsWith('hash=') && !p.startsWith('signature='))
-      .map((p) => {
-        const pos = p.indexOf('=');
-        const key = p.substring(0, pos);
-        const value = decodeURIComponent(p.substring(pos + 1));
-        return `${key}=${value}`;
-      });
+    // 2. Генерируем массив строк "key=value"
+    const dataPairs: string[] = [];
+    urlParams.forEach((value, key) => {
+      if (key !== 'hash' && key !== 'signature') {
+        dataPairs.push(`${key}=${value}`);
+      }
+    });
 
-    // 4. Сортируем пары по алфавиту
+    // 3. Сортируем и соединяем
     const dataCheckString = dataPairs.sort().join('\n');
 
-    // 5. Вычисляем Secret Key (WebAppData)
+    // 4. Расчет
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(cleanToken)
       .digest();
-
-    // 6. Вычисляем HMAC
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
-    console.log('--- FINAL DEBUG ---');
-    console.log('Data Check String:\n', dataCheckString);
-    console.log('HMAC:', hmac);
-    console.log('Expected Hash:', hash);
-
     if (hmac !== hash) {
+      console.log('--- ERROR DETAILS ---');
+      console.log('String for check:\n', dataCheckString);
+      console.log('Bot Token Used:', `${cleanToken.substring(0, 5)}***`);
       throw new UnauthorizedException('Telegram initData verification failed');
     }
 
-    // Для возврата данных используем обычный парсинг
-    const params = Object.fromEntries(new URLSearchParams(initData).entries());
-    if (params.user) {
-      params.user = JSON.parse(params.user);
-    }
-
-    return params;
+    const result = Object.fromEntries(urlParams.entries());
+    if (result.user) result.user = JSON.parse(result.user);
+    return result;
   }
   // ---------------------------
   // Генерация одноразового токена для self-service
