@@ -21,18 +21,18 @@ export class TelegramService {
     this.bot = new TelegramBot(process.env.BOT_TOKEN!, { polling: false });
   }
 
-  public verifyTelegramInitData(initData: string, botToken: string): any {
-    const cleanToken = botToken.trim();
+  public verifyTelegramInitData(initData: string): any {
+    // Используем токен, который мы уже проверили в конструкторе
+    const token = process.env.BOT_TOKEN;
+    if (!token) throw new UnauthorizedException('Bot token not found');
 
-    // 1. Разбиваем строку на части
+    const cleanToken = token.trim();
+
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
 
-    if (!hash) {
-      throw new UnauthorizedException('Hash is missing');
-    }
+    if (!hash) throw new UnauthorizedException('Hash is missing');
 
-    // 2. Генерируем массив строк "key=value"
     const dataPairs: string[] = [];
     urlParams.forEach((value, key) => {
       if (key !== 'hash' && key !== 'signature') {
@@ -40,27 +40,30 @@ export class TelegramService {
       }
     });
 
-    // 3. Сортируем и соединяем
     const dataCheckString = dataPairs.sort().join('\n');
 
-    // 4. Расчет
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
       .update(cleanToken)
       .digest();
+
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
     if (hmac !== hash) {
+      // Теперь лог покажет реальные символы токена
       console.log('--- ERROR DETAILS ---');
-      console.log('String for check:\n', dataCheckString);
-      console.log('Bot Token Used:', `${cleanToken.substring(0, 5)}***`);
+      console.log(
+        'Bot Token Used:',
+        `${cleanToken.substring(0, 4)}...${cleanToken.slice(-4)}`,
+      );
       throw new UnauthorizedException('Telegram initData verification failed');
     }
 
     const result = Object.fromEntries(urlParams.entries());
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     if (result.user) result.user = JSON.parse(result.user);
     return result;
   }
