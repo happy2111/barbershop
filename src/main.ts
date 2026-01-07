@@ -14,8 +14,8 @@ async function bootstrap() {
       'https://romitan-barbershop.uz',
     ],
     credentials: true,
-    allowedHeaders: 'Content-Type, Accept, Authorization',
-    exposedHeaders: ['set-cookie'], // Помогает браузеру увидеть куки
+    allowedHeaders: 'Content-Type, Accept, Authorization, x-telegram-init-data',
+    exposedHeaders: ['set-cookie'],
   });
 
   const UPLOAD_PATH = '/var/www/barbershop_uploads';
