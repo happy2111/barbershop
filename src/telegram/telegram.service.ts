@@ -22,6 +22,8 @@ export class TelegramService {
   }
 
   public verifyTelegramInitData(initData: string): any {
+    console.log('Telegram initData:', JSON.stringify(initData, null, 2));
+
     const token = process.env.BOT_TOKEN?.trim();
     if (!token) throw new UnauthorizedException('Bot token not found');
 
