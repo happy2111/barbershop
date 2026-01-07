@@ -21,75 +21,83 @@ export class TelegramService {
     this.bot = new TelegramBot(process.env.BOT_TOKEN!, { polling: false });
   }
 
-  public verifyTelegramInitData(initData: string): any {
-    console.log('Telegram initData:', JSON.stringify(initData, null, 2));
+  public verifyTelegramInitData(initDataRaw: string): any {
+    const botToken = process.env.BOT_TOKEN;
+    if (!botToken) {
+      throw new Error('BOT_TOKEN is not set in environment');
+    }
 
-    const token = process.env.BOT_TOKEN?.trim();
-    if (!token) throw new UnauthorizedException('Bot token not found');
-
-    // 1. Парсим строку
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get('hash');
-    if (!hash) throw new UnauthorizedException('Hash is missing');
-
-    // 2. Извлекаем все ключи, КРОМЕ hash
-    // ВАЖНО: Мы НЕ исключаем signature для проверки hash,
-    // так как в документации для проверки через HASH сказано "все полученные поля"
-    const keys = Array.from(urlParams.keys())
-      .filter((key) => key !== 'hash')
-      .sort();
-
-    // 3. Собираем строку проверки
-    const dataCheckString = keys
-      .map((key) => `${key}=${urlParams.get(key)}`)
-      .join('\n');
-
-    // 4. Вычисляем Secret Key (HMAC токена на ключе "WebAppData")
+    // 1. Создаем Secret Key
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(token)
+      .update(botToken)
       .digest();
 
-    // 5. Вычисляем HMAC всей строки
+    // 2. Парсим параметры
+    const params = new URLSearchParams(initDataRaw);
+    const providedHash = params.get('hash');
+
+    if (!providedHash) {
+      throw new UnauthorizedException('Telegram hash is missing');
+    }
+
+    // 3. Собираем ключи и сортируем их (как в вашем рабочем коде)
+    const pairs: string[] = [];
+    const keys: string[] = [];
+
+    for (const [key] of params.entries()) {
+      if (key === 'hash') continue;
+      keys.push(key);
+    }
+
+    keys.sort();
+
+    for (const key of keys) {
+      pairs.push(`${key}=${params.get(key)}`);
+    }
+
+    const dataCheckString = pairs.join('\n');
+
+    // 4. Вычисляем HMAC
     const hmac = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
-    if (hmac !== hash) {
-      // ПОПЫТКА №2: Если не совпало, пробуем исключить signature
-      // (иногда новые SDK его добавляют, но не включают в hash)
-      const keysNoSig = keys.filter((k) => k !== 'signature');
-      const dataCheckStringNoSig = keysNoSig
-        .map((key) => `${key}=${urlParams.get(key)}`)
-        .join('\n');
+    // 5. Безопасное сравнение (Timing Safe)
+    const hmacBuffer = Buffer.from(hmac, 'hex');
+    const hashBuffer = Buffer.from(providedHash, 'hex');
 
-      const hmacNoSig = crypto
-        .createHmac('sha256', secretKey)
-        .update(dataCheckStringNoSig)
-        .digest('hex');
+    const verified =
+      hmacBuffer.length === hashBuffer.length &&
+      crypto.timingSafeEqual(hmacBuffer, hashBuffer);
 
-      if (hmacNoSig === hash) {
-        return this.finalizeData(urlParams);
-      }
-
+    if (!verified) {
+      // Логируем для отладки, если не совпало
       console.log('--- VALIDATION FAILED ---');
-      console.log('Final String used:\n', dataCheckStringNoSig);
-      console.log('Computed:', hmacNoSig);
-      console.log('Expected:', hash);
-      throw new UnauthorizedException('Telegram initData verification failed');
+      console.log('Data Check String:\n', dataCheckString);
+      console.log('Computed HMAC:', hmac);
+      console.log('Provided Hash:', providedHash);
+      throw new UnauthorizedException('Telegram data hash verification failed');
     }
 
-    return this.finalizeData(urlParams);
-  }
+    // 6. Извлекаем данные пользователя
+    const userStr = params.get('user');
+    const result = Object.fromEntries(params.entries());
 
-  private finalizeData(urlParams: URLSearchParams) {
-    const result = Object.fromEntries(urlParams.entries());
-    if (result.user) {
-      result.user = JSON.parse(result.user);
+    if (userStr) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        result.user = JSON.parse(userStr);
+      } catch (e) {
+        console.error('Failed to parse user from initData:', e);
+      }
     }
+
     return result;
   }
+
+
 
   // ---------------------------
   // Генерация одноразового токена для self-service
