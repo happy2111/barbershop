@@ -25,6 +25,8 @@ export class TelegramService {
     // 1. Очистка входной строки от лишних пробелов по краям
     const rawString = initDataRaw.trim();
     const botToken = process.env.BOT_TOKEN?.trim();
+    console.log(botToken);
+    console.log(initDataRaw);
     if (!botToken) throw new Error('BOT_TOKEN missing');
 
     const secretKey = crypto
