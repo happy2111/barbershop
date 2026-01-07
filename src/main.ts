@@ -21,6 +21,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'https://www.romitan-barbershop.uz',
       'https://romitan-barbershop.uz',
+      'https://hycodemo.vercel.app',
     ],
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization, x-telegram-init-data',
