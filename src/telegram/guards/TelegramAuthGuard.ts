@@ -42,11 +42,11 @@ export class TelegramAuthGuard implements CanActivate {
     }
 
     // 2. Расшифровываем токен (если шифровали) или берем как есть
-    const botToken: string = company.telegramBotToken;
+    const botToken: string = company.telegramBotToken.trim();
 
     try {
       // 3. Передаем токен в метод валидации
-      const validatedData: any = this.telegramService.verifyTelegramInitData(
+      const validatedData = this.telegramService.verifyTelegramInitData(
         initData,
         botToken,
       );

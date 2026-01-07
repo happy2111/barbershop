@@ -21,16 +21,21 @@ export class TelegramService {
     this.bot = new TelegramBot(process.env.BOT_TOKEN!, { polling: false });
   }
 
-  // telegram.service.ts
-  public verifyTelegramInitData(initDataRaw: string, botToken: string): any {
-    // Ваша рабочая логика, которую вы нашли:
+  verifyTelegramInitData(initDataRaw: string, botToken: string | undefined) {
+    // const botToken = process.env.BOT_TOKEN;
+    if (!botToken) throw new Error('BOT_TOKEN missing');
+    console.log('BOT_TOKEN:', botToken);
+
     const params = new URLSearchParams(initDataRaw);
     const hash = params.get('hash');
-    if (!hash) throw new UnauthorizedException('Hash missing');
+
+    if (!hash) {
+      throw new UnauthorizedException('Hash missing');
+    }
 
     params.delete('hash');
-    params.delete('signature'); // Удаляем если есть
 
+    // ⚠️ НИЧЕГО НЕ decode !!!
     const dataCheckString = [...params.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => `${key}=${value}`)
@@ -38,7 +43,7 @@ export class TelegramService {
 
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(botToken) // Используем переданный токен
+      .update(botToken)
       .digest();
 
     const calculatedHash = crypto
@@ -50,12 +55,12 @@ export class TelegramService {
       throw new UnauthorizedException('Invalid Telegram data');
     }
 
+    // ✅ ТОЛЬКО ПОСЛЕ проверки
     const result: any = Object.fromEntries(params.entries());
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (result.user) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-argument
       result.user = JSON.parse(decodeURIComponent(result.user));
     }
+
     return result;
   }
   // ---------------------------
