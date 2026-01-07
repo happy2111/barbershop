@@ -80,6 +80,7 @@ export class BookingService {
           select: {
             name: true,
             phone: true,
+            telegramId: true,
           },
         },
         specialist: {
@@ -99,11 +100,7 @@ export class BookingService {
     // -----------------------------
     // Отправка уведомления в Telegram, если включено
     // -----------------------------
-    if (
-      company.telegramEnabled &&
-      company.telegramChatId &&
-      company.telegramBotToken
-    ) {
+    if (company.telegramEnabled && company.telegramBotToken) {
       const message = `
 📌 *Новое бронирование!*
 
@@ -114,14 +111,37 @@ export class BookingService {
 Цена: ${booking?.service?.price} сум
 Дата: ${booking.date.toLocaleDateString()}
 Время: ${booking.start_time} – ${booking.end_time}
+Ссылка: https://${company.domain}/booking/${booking.id}
 `;
 
-      // ПЕРЕДАЕМ ТОКЕН КОМПАНИИ
-      await this.telegramService.sendMessage(
-        company.telegramChatId,
-        message,
-        company.telegramBotToken,
-      );
+      // --- УВЕДОМЛЕНИЕ АДМИНУ (в группу компании) ---
+      if (company.telegramChatId) {
+        await this.telegramService.sendMessage(
+          company.telegramChatId,
+          message,
+          company.telegramBotToken,
+        );
+      }
+
+      // --- УВЕДОМЛЕНИЕ КЛИЕНТУ (в личные сообщения) ---
+      // Проверяем, есть ли у клиента telegramId
+      if (booking.client?.telegramId) {
+        const clientMessage = `
+Привет, ${booking.client.name || 'дорогой клиент'}! 👋
+Вы успешно записались в *${company.name}*.
+
+Специалист: ${booking.specialist.name}
+Услуга: ${booking.service?.name}
+Дата: ${booking.date.toLocaleDateString()}
+Время: ${booking.start_time}
+`;
+
+        await this.telegramService.sendMessage(
+          booking.client.telegramId.toString(), // BigInt нужно перевести в string
+          clientMessage,
+          company.telegramBotToken,
+        );
+      }
     }
 
     return booking;

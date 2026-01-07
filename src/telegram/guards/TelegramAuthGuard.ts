@@ -19,8 +19,6 @@ export class TelegramAuthGuard implements CanActivate {
     const initData: any = request.headers['x-telegram-init-data'];
     const hostname: string = request.query.hostname; // Получаем из query
 
-    console.log('hostname: ', hostname);
-
     if (!initData) return true;
 
     if (!hostname) {
@@ -35,7 +33,6 @@ export class TelegramAuthGuard implements CanActivate {
         select: { telegramBotToken: true },
       });
 
-    console.log('company: ', company);
 
     if (!company?.telegramBotToken) {
       throw new UnauthorizedException('Company telegram bot is not configured');
