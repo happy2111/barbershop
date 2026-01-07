@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { Prisma } from '@prisma/client';
 
 export interface TelegramUser {
   id: number;
@@ -42,7 +43,7 @@ export class ClientService {
   async create(
     dto: CreateClientDto,
     hostname: string,
-    tgDataFromGuard?: TelegramValidatedData, // Заменили any на интерфейс
+    tgDataFromGuard?: TelegramValidatedData,
   ) {
     const company = await this.prisma.company.findUnique({
       where: { domain: hostname },
@@ -52,17 +53,14 @@ export class ClientService {
       throw new BadRequestException('Company not found');
     }
 
-    // Извлекаем пользователя для удобства
     const tgUser = tgDataFromGuard?.user;
 
-    // Безопасное приведение к BigInt
     const finalTelegramId: bigint | null = tgUser?.id
       ? BigInt(tgUser.id)
       : dto.telegramId
         ? BigInt(dto.telegramId)
         : null;
 
-    // Формируем объект данных Telegram, чтобы не дублировать код в upsert
     const telegramFields = {
       telegramId: finalTelegramId,
       telegramUsername: tgUser?.username ?? dto.telegramUsername ?? null,
@@ -71,41 +69,50 @@ export class ClientService {
       telegramLang: tgUser?.language_code ?? dto.telegramLang ?? null,
     };
 
-    try {
-      const client = await this.prisma.client.upsert({
-        where: {
-          companyId_phone: {
-            companyId: company.id,
-            phone: dto.phone,
-          },
-        },
-        update: {
+    const orConditions: Prisma.clientWhereInput[] = [{ phone: dto.phone }];
+
+    if (finalTelegramId) {
+      orConditions.push({ telegramId: finalTelegramId });
+    }
+
+    const existingClient = await this.prisma.client.findFirst({
+      where: {
+        companyId: company.id,
+        OR: orConditions,
+      },
+    });
+
+
+    // ✏️ 2. ЕСЛИ НАШЛИ — обновляем
+    if (existingClient) {
+      const updated = await this.prisma.client.update({
+        where: { id: existingClient.id },
+        data: {
           name: dto.name,
-          ...telegramFields,
-        },
-        create: {
-          companyId: company.id,
-          name: dto.name,
-          phone: dto.phone,
           ...telegramFields,
         },
       });
 
       return {
-        ...client,
-        telegramId: client.telegramId?.toString() ?? null,
+        ...updated,
+        telegramId: updated.telegramId?.toString() ?? null,
       };
-    } catch (e: unknown) {
-      // Проверка кода ошибки Prisma без использования any
-      if (typeof e === 'object' && e !== null && 'code' in e) {
-        if ((e as { code: string }).code === 'P2002') {
-          throw new BadRequestException(
-            'Этот номер телефона или Telegram аккаунт уже занят в этой компании',
-          );
-        }
-      }
-      throw e;
     }
+
+    // ➕ 3. ЕСЛИ НЕ НАШЛИ — создаём
+    const created = await this.prisma.client.create({
+      data: {
+        companyId: company.id,
+        name: dto.name,
+        phone: dto.phone,
+        ...telegramFields,
+      },
+    });
+
+    return {
+      ...created,
+      telegramId: created.telegramId?.toString() ?? null,
+    };
   }
 
   async findAll(companyId: number) {

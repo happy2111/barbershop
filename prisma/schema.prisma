@@ -123,6 +123,7 @@ model client {
   bookings booking[]
 
   @@unique([companyId, phone])
+  @@unique([companyId, telegramId])
   @@map("clients")
 }
 
