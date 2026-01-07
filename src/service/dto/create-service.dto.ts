@@ -1,4 +1,12 @@
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateServiceDto {
   @IsString()
@@ -19,4 +27,7 @@ export class CreateServiceDto {
   @IsOptional()
   @IsString()
   photo?: string;
+
+  // companyId не приходит с фронта, ставим optional и передаем из JWT
+  companyId?: number;
 }

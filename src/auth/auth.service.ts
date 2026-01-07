@@ -1,15 +1,11 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 
-interface JwtPayload {
-  sub: number;
-  phone: string;
-  role: string;
-}
+import { JwtPayload } from './types/JwPayload';
 
 @Injectable()
 export class AuthService {
@@ -19,31 +15,60 @@ export class AuthService {
     private config: ConfigService,
   ) {}
 
-  private parseDurationToMs(input: string | undefined, fallbackMs: number): number {
+  private parseDurationToMs(
+    input: string | undefined,
+    fallbackMs: number,
+  ): number {
     const str = (input ?? '').trim();
     if (!str) return fallbackMs;
     const match = /^([0-9]+)\s*([smhd])$/.exec(str);
     if (!match) return fallbackMs;
     const value = Number(match[1]);
     const unit = match[2];
-    const mul = unit === 's' ? 1000 : unit === 'm' ? 60_000 : unit === 'h' ? 3_600_000 : 86_400_000;
+    const mul =
+      unit === 's'
+        ? 1000
+        : unit === 'm'
+          ? 60_000
+          : unit === 'h'
+            ? 3_600_000
+            : 86_400_000;
     return value * mul;
   }
 
-  private async signTokens(user: { id: number; phone: string; role: string }) {
-    const accessExpiresInStr = this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '15m');
-    const refreshExpiresInStr = this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '7d');
+  private async signTokens(user: {
+    id: number;
+    phone: string;
+    role: string;
+    companyId: number;
+  }) {
+    const accessExpiresInStr = this.config.get<string>(
+      'JWT_ACCESS_EXPIRES_IN',
+      '15m',
+    );
+    const refreshExpiresInStr = this.config.get<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+      '7d',
+    );
 
-    const payload: JwtPayload = { sub: user.id, phone: user.phone, role: user.role };
+    const payload: JwtPayload = {
+      sub: user.id,
+      phone: user.phone,
+      role: user.role,
+      companyId: user.companyId,
+    };
 
     const accessToken = await this.jwt.signAsync(payload, {
       secret: this.config.getOrThrow<string>('JWT_SECRET'),
-      expiresIn: this.parseDurationToMs(accessExpiresInStr, 15 * 60 * 1000) / 1000,
+      expiresIn:
+        this.parseDurationToMs(accessExpiresInStr, 15 * 60 * 1000) / 1000,
     });
 
     const refreshToken = await this.jwt.signAsync(payload, {
       secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.parseDurationToMs(refreshExpiresInStr, 7 * 24 * 60 * 60 * 1000) / 1000,
+      expiresIn:
+        this.parseDurationToMs(refreshExpiresInStr, 7 * 24 * 60 * 60 * 1000) /
+        1000,
     });
 
     return { accessToken, refreshToken };
@@ -58,7 +83,19 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const specialist = await this.prisma.specialist.findUnique({ where: { phone: dto.phone } });
+    const company = await this.prisma.company.findUnique({
+      where: { domain: dto.hostname },
+    });
+    if (!company) throw new UnauthorizedException('Company not found');
+    const specialist = await this.prisma.specialist.findUnique({
+      where: {
+        companyId_phone: {
+          companyId: company.id,
+          phone: dto.phone,
+        },
+      },
+    });
+
     if (!specialist) throw new UnauthorizedException('Invalid credentials');
 
     const isValid = await bcrypt.compare(dto.password, specialist.password);
@@ -68,11 +105,22 @@ export class AuthService {
       id: specialist.id,
       phone: specialist.phone,
       role: specialist.role,
+      companyId: specialist.companyId,
     });
 
     await this.setRefreshToken(specialist.id, refreshToken);
 
-    return { accessToken, refreshToken, user: { id: specialist.id, phone: specialist.phone, name: specialist.name, role: specialist.role } };
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: specialist.id,
+        phone: specialist.phone,
+        name: specialist.name,
+        role: specialist.role,
+        companyId: specialist.companyId,
+      },
+    };
   }
 
   async refresh(oldRefreshToken: string | undefined) {
@@ -87,18 +135,29 @@ export class AuthService {
     }
     const specialist = await this.prisma.specialist.findUnique({
       where: { id: payload.sub },
-      select: { id: true, phone: true, name: true, role: true, refreshToken: true }, // выбираем только нужное
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        role: true,
+        companyId: true,
+        refreshToken: true,
+      }, // выбираем только нужное
     });
 
     if (!specialist || !specialist.refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
-    const match = await bcrypt.compare(oldRefreshToken, specialist.refreshToken);
+    const match = await bcrypt.compare(
+      oldRefreshToken,
+      specialist.refreshToken,
+    );
     if (!match) throw new UnauthorizedException('Refresh token mismatch');
     const { accessToken, refreshToken } = await this.signTokens({
       id: specialist.id,
       phone: specialist.phone,
       role: specialist.role,
+      companyId: specialist.companyId,
     });
     await this.setRefreshToken(specialist.id, refreshToken);
     return {
@@ -109,6 +168,7 @@ export class AuthService {
         phone: specialist.phone,
         name: specialist.name,
         role: specialist.role,
+        companyId: specialist.companyId,
       },
     };
   }
@@ -119,25 +179,32 @@ export class AuthService {
       const payload = await this.jwt.verifyAsync<JwtPayload>(refreshToken, {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
-      await this.prisma.specialist.update({ where: { id: payload.sub }, data: { refreshToken: null } });
+      await this.prisma.specialist.update({
+        where: { id: payload.sub },
+        data: { refreshToken: null },
+      });
     } catch {
       // ignore invalid token for logout to be idempotent
     }
   }
 
   getRefreshCookieOptions() {
-    const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '7d');
-    const maxAge = this.parseDurationToMs(refreshExpiresIn, 7 * 24 * 60 * 60 * 1000);
-    const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
+    const refreshExpiresIn = this.config.get<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+      '7d',
+    );
+    const maxAge = this.parseDurationToMs(
+      refreshExpiresIn,
+      7 * 24 * 60 * 60 * 1000,
+    );
+    // const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
 
     return {
       httpOnly: true,
       secure: true, // Всегда true для HTTPS
       sameSite: 'none' as const, // Разрешаем кросс-доменные куки
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge,
     };
   }
-
-
 }

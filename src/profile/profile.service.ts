@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // твой готовый сервис
 import { UpdateSpecialistDto } from './dto/update-specialist.dto';
-import { CreateScheduleDto} from './dto/schedule.dto';
+import { CreateScheduleDto } from './dto/schedule.dto';
 import * as bcrypt from 'bcryptjs';
+
 @Injectable()
 export class ProfileService {
   constructor(private prisma: PrismaService) {}
@@ -58,8 +59,22 @@ export class ProfileService {
   }
 
   // Обновить информацию о специалисте
-  async updateProfile(specialistId: number, dto: UpdateSpecialistDto) {
-    return this.prisma.specialist.update({
+  async updateProfile(
+    specialistId: number,
+    companyId: number,
+    dto: UpdateSpecialistDto,
+  ) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
+    // Обновляем
+    const updated = await this.prisma.specialist.update({
       where: { id: specialistId },
       data: dto,
       select: {
@@ -71,16 +86,39 @@ export class ProfileService {
         skills: true,
       },
     });
+
+    return updated;
   }
 
-  async getSchedule(specialistId: number) {
+  async getSchedule(specialistId: number, companyId: number) {
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     return this.prisma.schedule.findMany({
       where: { specialistId },
       orderBy: { day_of_week: 'asc' },
     });
   }
 
-  async upsertSchedule(specialistId: number, dto: CreateScheduleDto) {
+  async upsertSchedule(
+    specialistId: number,
+    companyId: number,
+    dto: CreateScheduleDto,
+  ) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const existing = await this.prisma.schedule.findUnique({
       where: {
         specialistId_day_of_week: {
@@ -102,13 +140,26 @@ export class ProfileService {
         data: {
           ...dto,
           specialistId,
+          companyId,
         },
       });
     }
   }
 
-  // Удалить расписание на день недели
-  async deleteSchedule(specialistId: number, day_of_week: number) {
+  async deleteSchedule(
+    specialistId: number,
+    companyId: number,
+    day_of_week: number,
+  ) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const schedule = await this.prisma.schedule.findUnique({
       where: {
         specialistId_day_of_week: {
@@ -130,13 +181,23 @@ export class ProfileService {
   }
 
   // Получить предстоящие брони
-  async getUpcomingBookings(specialistId: number) {
+  async getUpcomingBookings(specialistId: number, companyId: number) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     return this.prisma.booking.findMany({
       where: {
         specialistId,
+        isSystem: false,
         date: { gte: today },
         status: { in: ['PENDING', 'CONFIRMED'] },
       },
@@ -148,13 +209,22 @@ export class ProfileService {
     });
   }
 
-  // Получить прошедшие брони (история)
-  async getPastBookings(specialistId: number) {
+  async getPastBookings(specialistId: number, companyId: number) {
+    // Проверяем, что специалист принадлежит компании
+    const specialist = await this.prisma.specialist.findFirst({
+      where: { id: specialistId, companyId },
+    });
+
+    if (!specialist) {
+      throw new NotFoundException('Специалист не найден в вашей компании');
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     return this.prisma.booking.findMany({
       where: {
+        isSystem: false,
         specialistId,
         date: { lt: today },
       },
@@ -166,27 +236,39 @@ export class ProfileService {
     });
   }
 
-  async changePassword(specialistId: number, oldPassword: string, newPassword: string) {
-    const specialist = await this.prisma.specialist.findUnique({
-      where: { id: specialistId },
+  async changePassword(
+    userId: number,
+    companyId: number,
+    oldPassword: string,
+    newPassword: string | undefined,
+  ) {
+    console.log(
+      oldPassword
+    )
+    const user = await this.prisma.specialist.findUnique({
+      where: { id: userId, companyId },
     });
 
-    if (!specialist) {
-      throw new NotFoundException('Специалист не найден');
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
-    const isMatch = await bcrypt.compare(oldPassword, specialist.password);
-    if (!isMatch) {
-      throw new NotFoundException('Старый пароль неверен');
+
+    const isValid: boolean = await bcrypt.compare(oldPassword, user.password);
+
+    if (!isValid) {
+      throw new NotFoundException('Invalid password');
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    if (newPassword) {
+      const hashed = await bcrypt.hash(newPassword, 10);
 
-    await this.prisma.specialist.update({
-      where: { id: specialistId },
-      data: { password: hashedPassword },
-    });
+      return this.prisma.specialist.update({
+        where: { id: userId },
+        data: { password: hashed },
+      });
+    }
 
-    return { message: 'Пароль успешно изменён' };
+    return { message: 'Password valid' };
   }
 }

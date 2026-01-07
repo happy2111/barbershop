@@ -8,9 +8,17 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.authService.login(dto);
-    res.cookie('refreshToken', refreshToken, this.authService.getRefreshCookieOptions());
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { accessToken, refreshToken, user } =
+      await this.authService.login(dto);
+    res.cookie(
+      'refreshToken',
+      refreshToken,
+      this.authService.getRefreshCookieOptions(),
+    );
     return { accessToken, user };
   }
 
@@ -20,8 +28,16 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const refreshToken = req.cookies?.refreshToken as string | undefined;
-    const { accessToken, refreshToken: newRt, user } = await this.authService.refresh(refreshToken);
-    res.cookie('refreshToken', newRt, this.authService.getRefreshCookieOptions());
+    const {
+      accessToken,
+      refreshToken: newRt,
+      user,
+    } = await this.authService.refresh(refreshToken);
+    res.cookie(
+      'refreshToken',
+      newRt,
+      this.authService.getRefreshCookieOptions(),
+    );
     return { accessToken, user };
   }
 
