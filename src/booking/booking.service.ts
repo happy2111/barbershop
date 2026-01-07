@@ -99,18 +99,29 @@ export class BookingService {
     // -----------------------------
     // Отправка уведомления в Telegram, если включено
     // -----------------------------
-    if (company.telegramEnabled && company.telegramChatId) {
+    if (
+      company.telegramEnabled &&
+      company.telegramChatId &&
+      company.telegramBotToken
+    ) {
       const message = `
 📌 *Новое бронирование!*
 
-Клиент: ${booking?.client?.name ?? 'Без имени'} (${booking?.client?.phone})
+Клиент: ${booking?.client?.name ?? 'Без имени'}
+Телефон: ${booking?.client?.phone}
 Специалист: ${booking.specialist.name}
-Услуга: ${booking?.service?.name} (${booking?.service?.price} сум)
+Услуга: ${booking?.service?.name}
+Цена: ${booking?.service?.price} сум
 Дата: ${booking.date.toLocaleDateString()}
 Время: ${booking.start_time} – ${booking.end_time}
 `;
 
-      await this.telegramService.sendMessage(company.telegramChatId, message);
+      // ПЕРЕДАЕМ ТОКЕН КОМПАНИИ
+      await this.telegramService.sendMessage(
+        company.telegramChatId,
+        message,
+        company.telegramBotToken,
+      );
     }
 
     return booking;

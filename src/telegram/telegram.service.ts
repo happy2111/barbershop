@@ -121,12 +121,25 @@ export class TelegramService {
   // ---------------------------
   // Отправка сообщения компании
   // ---------------------------
-  async sendMessage(chatId: string, message: string) {
+  async sendMessage(chatId: string, message: string, botToken?: string) {
     try {
-      await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      // Если токен передан (от компании), используем его.
+      // Если нет - берем дефолтный из env.
+      const token = botToken || process.env.BOT_TOKEN;
+
+      if (!token) {
+        console.error('No bot token provided for sendMessage');
+        return false;
+      }
+
+      // Вместо использования this.bot, создаем временный запрос или экземпляр
+      const tempBot = new TelegramBot(token, { polling: false });
+      await tempBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+
       return true;
     } catch (e) {
-      console.error('Failed to send Telegram message:', e);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      console.error('Failed to send Telegram message:', e.message);
       return false;
     }
   }
