@@ -13,10 +13,12 @@ model company {
   domain    String?  @unique
   createdAt DateTime @default(now())
 
+  webAppUrl        String?
   telegramBotToken String?
 
-  telegramChatId  String?
-  telegramEnabled Boolean @default(false)
+  telegramChatId   String?
+  telegramEnabled  Boolean @default(false)
+  marketingEnabled Boolean @default(false)
 
   specialists       specialist[]
   services          service[]

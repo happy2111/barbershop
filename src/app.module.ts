@@ -15,6 +15,7 @@ import { ProfileModule } from './profile/profile.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { IntegrationModule } from './integration/integration.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { MarketingModule } from './marketing/marketing.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     TelegramModule,
     IntegrationModule,
     DashboardModule,
+    MarketingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
