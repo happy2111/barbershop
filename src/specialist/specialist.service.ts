@@ -69,6 +69,28 @@ export class SpecialistService {
     });
   }
 
+  async findAllPrivate(companyId: number) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+    });
+    if (!company) return [];
+
+    return this.prisma.specialist.findMany({
+      where: {
+        companyId: company.id,
+      },
+      select: {
+        id: true,
+        name: true,
+        photo: true,
+        description: true,
+        skills: true,
+        phone: true,
+      },
+    });
+  }
+
+
   async findOne(id: number, companyId: number) {
     const user = await this.prisma.specialist.findUnique({
       where: { id },

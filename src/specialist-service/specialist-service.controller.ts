@@ -26,11 +26,6 @@ export class SpecialistServiceController {
     return this.service.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
-  }
-
   @Get('specialist/:id')
   findBySpecialist(@Param('id', ParseIntPipe) id: number) {
     return this.service.findBySpecialist(id);
@@ -45,6 +40,11 @@ export class SpecialistServiceController {
   @Post()
   create(@Body() dto: CreateSpecialistServiceDto) {
     return this.service.create(dto);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard)
