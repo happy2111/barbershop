@@ -86,6 +86,7 @@ export class SpecialistService {
         description: true,
         skills: true,
         phone: true,
+        role: true,
       },
     });
   }
