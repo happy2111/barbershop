@@ -84,6 +84,15 @@ export class SpecialistController {
     return this.specialistService.fetchByServicePublic(serviceId, domain);
   }
 
+  @Get('private')
+  @UseGuards(JwtAuthGuard)
+  @Roles('ADMIN')
+  findAllPrivate(
+    @User() user: { companyId: number },
+  ){
+    return this.specialistService.findAllPrivate(user.companyId)
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(
@@ -109,14 +118,7 @@ export class SpecialistController {
     return this.specialistService.update(id, dto, user.companyId);
   }
 
-  @Get('private')
-  @UseGuards(JwtAuthGuard)
-  @Roles('ADMIN')
-  findAllPrivate(
-    @User() user: { companyId: number },
-  ){
-    return this.specialistService.findAllPrivate(user.companyId)
-  }
+
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
