@@ -52,58 +52,78 @@ export class ScheduleService {
     specialistId: number,
     serviceId: number,
     date: string,
-    companyId: number, // новый параметр
+    companyId: number,
   ) {
-    // Находим сервис
     const service = await this.prisma.service.findFirst({
       where: { id: serviceId, companyId },
     });
     if (!service) return [];
 
     const duration = service.duration_min;
-
-    // Начало дня в UTC
     const dayStart = new Date(`${date}T00:00:00.000Z`);
+
     if (isNaN(dayStart.getTime())) {
       throw new Error('Invalid date format. Expected YYYY-MM-DD');
     }
 
-    // Находим расписание специалиста в этой компании
     const schedule = await this.prisma.schedule.findFirst({
       where: {
         specialistId,
-        specialist: { companyId }, // фильтр по компании
+        specialist: { companyId },
         day_of_week: dayStart.getUTCDay(),
       },
     });
     if (!schedule) return [];
 
-    // Брони на этот день только для компании
     const bookings = await this.prisma.booking.findMany({
       where: {
         specialistId,
-        companyId, // фильтруем по компании
+        companyId,
         date: {
           gte: dayStart,
           lt: new Date(`${date}T23:59:59.999Z`),
         },
-        status: {
-          in: ['PENDING', 'CONFIRMED'], // учитываем только активные брони
-        },
+        status: { in: ['PENDING', 'CONFIRMED'] },
       },
     });
 
-    const bookedRanges: BookingRange[] = bookings.map((b) => ({
+    const bookedRanges = bookings.map((b) => ({
       start: b.start_time,
       end: b.end_time,
     }));
 
-    return this.generateSlots(
+    // Генерируем все возможные слоты
+    const allSlots = this.generateSlots(
       schedule.start_time,
       schedule.end_time,
       duration,
       bookedRanges,
     );
+
+    // --- ЛОГИКА ФИЛЬТРАЦИИ ПО ТЕКУЩЕМУ ВРЕМЕНИ ---
+
+    // Получаем текущее время в Ташкенте (UTC+5)
+    const now = new Date();
+    const tashkentOffset = 5 * 60; // 5 часов в минутах
+    const nowInTashkent = new Date(now.getTime() + (now.getTimezoneOffset() + tashkentOffset) * 60000);
+
+    const todayString = nowInTashkent.toISOString().split('T')[0];
+
+    // Если запрашиваемая дата — это сегодня
+    if (date === todayString) {
+      const currentWaitTime = nowInTashkent.getHours() * 60 + nowInTashkent.getMinutes();
+
+      return allSlots.filter(slot => {
+        const [hours, minutes] = slot.start.split(':').map(Number);
+        const slotStartMinutes = hours * 60 + minutes;
+
+        // Оставляем только те слоты, которые начнутся, например, через 15 минут от текущего момента
+        // или просто те, которые строго больше текущего времени
+        return slotStartMinutes > currentWaitTime;
+      });
+    }
+
+    return allSlots;
   }
 
   async findAll(hostname: string) {
