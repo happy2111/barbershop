@@ -61,8 +61,9 @@ export class BookingController {
   changeStatus(
     @Param('id') id: number,
     @Param('status') status: BookingStatus,
+    @Query ('hostname') hostname: any
   ) {
-    return this.bookingService.changeStatus(+id, status);
+    return this.bookingService.changeStatus(+id, status, hostname);
   }
 
   @UseGuards(JwtAuthGuard)

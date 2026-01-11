@@ -50,13 +50,11 @@ export class BookingService {
   // CREATE
   //---------------------------------------------
   async create(dto: CreateBookingDto, hostname: string) {
-    // Находим компанию по hostname
     const company = await this.prisma.company.findUnique({
       where: { domain: hostname },
     });
     if (!company) throw new NotFoundException('Company not found');
 
-    // Проверяем доступность времени
     await this.ensureTimeSlotAvailable(
       dto.specialistId,
       dto.date,
@@ -214,6 +212,7 @@ export class BookingService {
           select: {
             name: true,
             phone: true,
+            telegramId: true,
           },
         },
         specialist: true,
@@ -280,8 +279,56 @@ export class BookingService {
   //---------------------------------------------
   // Изменение статуса
   //---------------------------------------------
-  async changeStatus(id: number, status: BookingStatus) {
-    await this.findOne(id);
+  async changeStatus(id: number, status: BookingStatus, hostname: string) {
+    const booking = await this.findOne(id);
+    const company = await this.prisma.company.findUnique({
+      where: { domain: hostname },
+    });
+
+    if (!company) throw new NotFoundException('Company not found');
+
+    // Проверяем наличие клиента и ID телеграма
+    if (booking.client?.telegramId) {
+      const displayName = booking.client.name || 'клиент';
+      const dateStr = booking.date.toLocaleDateString('ru-RU');
+      const bookingUrl = `https://${company.domain}/booking/${booking.id}`;
+
+      let message = '';
+
+      if (status === BookingStatus.CONFIRMED) {
+        message = `
+✅ *Запись подтверждена!*
+
+Приятные новости, ${displayName}! Ваша запись в *${company.name}* подтверждена специалистом.
+
+*Детали:*
+*Специалист:* ${booking.specialist.name}
+*Услуга:* ${booking.service?.name ?? 'Не указана'}
+*Дата:* ${dateStr}
+*Время:* ${booking.start_time}
+
+Ждем вас! Если планы изменятся, пожалуйста, сообщите нам заранее или отмените.
+🔗 ${bookingUrl}
+`;
+      } else if (status === BookingStatus.CANCELLED) {
+        message = `
+❌ *Запись отменена*
+
+Здравствуйте, ${displayName}. К сожалению, ваша запись в *${company.name}* на ${dateStr} в ${booking.start_time} была отменена.
+
+Если у вас возникли вопросы, вы можете связаться с нами или выбрать другое время для записи по ссылке:
+🔗 https://${company.domain}
+`;
+      }
+
+      if (message) {
+        await this.telegramService.sendMessage(
+          booking.client.telegramId.toString(),
+          message,
+          company.telegramBotToken ?? undefined,
+        );
+      }
+    }
 
     return this.prisma.booking.update({
       where: { id },
