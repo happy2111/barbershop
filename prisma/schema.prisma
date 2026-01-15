@@ -65,6 +65,7 @@ model specialist {
   services  specialist_service[]
 
   @@unique([companyId, phone])
+  @@index([companyId, role])
   @@map("specialists")
 }
 
@@ -94,6 +95,7 @@ model service {
   bookings    booking[]
   specialists specialist_service[]
 
+  @@index([categoryId])
   @@map("services")
 }
 
@@ -106,6 +108,7 @@ model specialist_service {
   service    service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@unique([specialistId, serviceId])
+  @@index([serviceId])
   @@map("specialist_services")
 }
 
@@ -164,6 +167,8 @@ model booking {
   specialist specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
   service    service?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
+  @@index([specialistId, date, status])
+  @@index([companyId, date])
   @@map("bookings")
 }
 
