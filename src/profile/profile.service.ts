@@ -34,8 +34,12 @@ export class ProfileService {
             client: {
               select: { name: true, phone: true },
             },
-            service: {
-              select: { name: true, price: true },
+            services: {
+              include: {
+                service: {
+                  select: {name: true, price: true}
+                }
+              }
             },
           },
           orderBy: { date: 'desc' },
@@ -47,7 +51,6 @@ export class ProfileService {
       throw new NotFoundException('Специалист не найден');
     }
 
-    // Форматируем услуги
     const services = specialist.services.map((ss) => ss.service);
 
     return {
@@ -58,7 +61,6 @@ export class ProfileService {
     };
   }
 
-  // Обновить информацию о специалисте
   async updateProfile(
     specialistId: number,
     companyId: number,
@@ -203,7 +205,13 @@ export class ProfileService {
       },
       include: {
         client: { select: { name: true, phone: true } },
-        service: { select: { name: true, price: true, duration_min: true } },
+        services: {
+          include: {
+            service: {
+              select: {name: true, price: true, duration_min: true}
+            }
+          }
+        },
       },
       orderBy: { date: 'asc' },
     });
@@ -230,7 +238,13 @@ export class ProfileService {
       },
       include: {
         client: { select: { name: true, phone: true } },
-        service: { select: { name: true, price: true } },
+        services: {
+          include: {
+            service: {
+              select: {name: true, price: true}
+            }
+          }
+        },
       },
       orderBy: { date: 'desc' },
     });

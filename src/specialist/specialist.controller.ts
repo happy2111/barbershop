@@ -76,13 +76,21 @@ export class SpecialistController {
     return this.specialistService.findAllByHostname(hostname);
   }
 
-  @Get('by-service/:serviceId')
-  fetchByServicePublic(
-    @Param('serviceId', ParseIntPipe) serviceId: number,
+  @Get('by-services')
+  fetchByServicesPublic(
+    @Query('serviceIds') serviceIds: string, // оставляем string
     @Query('hostname') domain: string,
   ) {
-    return this.specialistService.fetchByServicePublic(serviceId, domain);
+    if (!serviceIds) return [];
+
+    const ids = serviceIds
+      .split(',')
+      .map(id => Number(id))
+      .filter(id => !isNaN(id));
+
+    return this.specialistService.fetchByServicesPublic(ids, domain);
   }
+
 
   @Get('private')
   @UseGuards(JwtAuthGuard)

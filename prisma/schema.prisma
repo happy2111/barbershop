@@ -90,10 +90,10 @@ model service {
   categoryId   Int
   photo        String?
 
-  company     company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  category    service_category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  bookings    booking[]
-  specialists specialist_service[]
+  company         company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category        service_category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  specialists     specialist_service[]
+  booking_service booking_service[]
 
   @@index([categoryId])
   @@map("services")
@@ -150,26 +150,37 @@ model schedule {
 }
 
 model booking {
-  id           Int           @id @default(autoincrement())
+  id           Int               @id @default(autoincrement())
   companyId    Int
   clientId     Int?
   specialistId Int
-  serviceId    Int?
   date         DateTime
   start_time   String
   end_time     String
-  status       BookingStatus @default(PENDING)
-  isSystem     Boolean       @default(false)
+  status       BookingStatus     @default(PENDING)
+  isSystem     Boolean           @default(false)
   reason       String?
+  services     booking_service[]
 
   company    company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   client     client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   specialist specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
-  service    service?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([specialistId, date, status])
   @@index([companyId, date])
   @@map("bookings")
+}
+
+model booking_service {
+  id        Int @id @default(autoincrement())
+  bookingId Int
+  serviceId Int
+
+  booking booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, serviceId])
+  @@map("booking_services")
 }
 
 enum BookingStatus {

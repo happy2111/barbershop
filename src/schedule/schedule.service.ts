@@ -48,23 +48,26 @@ export class ScheduleService {
       include: { specialist: true },
     });
   }
+
+
   async getFreeSlots(
     specialistId: number,
-    serviceId: number,
+    serviceIds: number[],
     date: string,
     companyId: number,
   ) {
-    const service = await this.prisma.service.findFirst({
-      where: { id: serviceId, companyId },
+    if (!serviceIds.length) return [];
+
+    const services = await this.prisma.service.findMany({
+      where: { id: { in: serviceIds }, companyId },
     });
-    if (!service) return [];
 
-    const duration = service.duration_min;
+    if (!services.length) return [];
+
+    const duration = services.reduce((sum, s) => sum + s.duration_min, 0);
+
     const dayStart = new Date(`${date}T00:00:00.000Z`);
-
-    if (isNaN(dayStart.getTime())) {
-      throw new Error('Invalid date format. Expected YYYY-MM-DD');
-    }
+    if (isNaN(dayStart.getTime())) throw new Error('Invalid date format');
 
     const schedule = await this.prisma.schedule.findFirst({
       where: {
@@ -79,52 +82,38 @@ export class ScheduleService {
       where: {
         specialistId,
         companyId,
-        date: {
-          gte: dayStart,
-          lt: new Date(`${date}T23:59:59.999Z`),
-        },
+        date: { gte: dayStart, lt: new Date(`${date}T23:59:59.999Z`) },
         status: { in: ['PENDING', 'CONFIRMED'] },
       },
     });
 
-    const bookedRanges = bookings.map((b) => ({
-      start: b.start_time,
-      end: b.end_time,
-    }));
+    const bookedRanges = bookings.map(b => ({ start: b.start_time, end: b.end_time }));
 
-    // Генерируем все возможные слоты
     const allSlots = this.generateSlots(
       schedule.start_time,
       schedule.end_time,
       duration,
-      bookedRanges,
+      bookedRanges
     );
 
-    // --- ЛОГИКА ФИЛЬТРАЦИИ ПО ТЕКУЩЕМУ ВРЕМЕНИ ---
-
-    // Получаем текущее время в Ташкенте (UTC+5)
+    // --- фильтруем по текущему времени ---
     const now = new Date();
-    const tashkentOffset = 5 * 60; // 5 часов в минутах
+    const tashkentOffset = 5 * 60;
     const nowInTashkent = new Date(now.getTime() + (now.getTimezoneOffset() + tashkentOffset) * 60000);
-
     const todayString = nowInTashkent.toISOString().split('T')[0];
 
-    // Если запрашиваемая дата — это сегодня
     if (date === todayString) {
-      const currentWaitTime = nowInTashkent.getHours() * 60 + nowInTashkent.getMinutes();
-
+      const currentMinutes = nowInTashkent.getHours() * 60 + nowInTashkent.getMinutes();
       return allSlots.filter(slot => {
-        const [hours, minutes] = slot.start.split(':').map(Number);
-        const slotStartMinutes = hours * 60 + minutes;
-
-        // Оставляем только те слоты, которые начнутся, например, через 15 минут от текущего момента
-        // или просто те, которые строго больше текущего времени
-        return slotStartMinutes > currentWaitTime;
+        const [h, m] = slot.start.split(':').map(Number);
+        const slotStartMinutes = h * 60 + m;
+        return slotStartMinutes > currentMinutes;
       });
     }
 
     return allSlots;
   }
+
 
   async findAll(hostname: string) {
     const company = await this.prisma.company.findUnique({

@@ -55,7 +55,6 @@ export class TelegramService {
       throw new UnauthorizedException('Invalid Telegram data');
     }
 
-    // ✅ ТОЛЬКО ПОСЛЕ проверки
     const result: any = Object.fromEntries(params.entries());
     if (result.user) {
       result.user = JSON.parse(decodeURIComponent(result.user));

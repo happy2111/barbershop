@@ -23,7 +23,6 @@ export interface TelegramValidatedData {
   auth_date: string;
   hash: string;
   query_id?: string;
-  // Добавьте другие поля, если они приходят из initData
 }
 
 @Injectable()
