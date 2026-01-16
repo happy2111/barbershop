@@ -78,22 +78,21 @@ export class ScheduleController {
   @Get(':id/free-slots')
   async getFreeSlots(
     @Param('id', ParseIntPipe) specialistId: number,
-    @Query('serviceId', ParseIntPipe) serviceId: number,
+    @Query('serviceIds') serviceIdsStr: string,
     @Query('date') date: string,
     @Query('hostname') hostname: string,
   ) {
-    const company = await this.prismaService.company.findUnique({
-      where: { domain: hostname },
-    });
-    if (!company) {
-      throw new Error('Invalid hostname');
-    }
+    const company = await this.prismaService.company.findUnique({ where: { domain: hostname } });
+    if (!company) throw new Error('Invalid hostname');
+
+    const serviceIds = serviceIdsStr.split(',').map(Number).filter(Boolean);
 
     return this.scheduleService.getFreeSlots(
       specialistId,
-      serviceId,
+      serviceIds,
       date,
-      company.id,
+      company.id
     );
   }
+
 }

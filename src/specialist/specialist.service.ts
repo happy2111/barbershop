@@ -180,7 +180,7 @@ export class SpecialistService {
     return this.toSafe(updated);
   }
 
-  async fetchByServicePublic(serviceId: number, domain: string) {
+  async fetchByServicesPublic(serviceIds: number[], domain: string) {
     const company = await this.prisma.company.findFirst({
       where: { domain },
     });
@@ -190,9 +190,18 @@ export class SpecialistService {
       where: {
         role: 'SPECIALIST',
         companyId: company.id,
-        services: { some: { serviceId } },
+
+        AND: serviceIds.map((serviceId) => ({
+          services: {
+            some: {
+              serviceId,
+            },
+          },
+        })),
       },
-      include: { services: true },
+      include: {
+        services: true,
+      },
       orderBy: { id: 'asc' },
     });
 

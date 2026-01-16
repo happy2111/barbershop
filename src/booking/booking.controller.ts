@@ -24,7 +24,9 @@ export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
   @Post()
-  create(@Body() dto: CreateBookingDto, @Query('hostname') hostname: string) {
+  create(
+    @Body() dto: CreateBookingDto,
+    @Query('hostname') hostname: string) {
     return this.bookingService.create(dto, hostname);
   }
 
@@ -61,12 +63,13 @@ export class BookingController {
   changeStatus(
     @Param('id') id: number,
     @Param('status') status: BookingStatus,
-    @Query ('hostname') hostname: any
+    @Query ('hostname') hostname: string
   ) {
     return this.bookingService.changeStatus(+id, status, hostname);
   }
 
   @UseGuards(JwtAuthGuard)
+  @Roles('ADMIN')
   @Delete(':id')
   remove(@Param('id') id: number) {
     return this.bookingService.remove(+id);

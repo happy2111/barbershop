@@ -78,15 +78,22 @@ export class DashboardService {
         companyId,
         status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
         date: { gte: start, lte: end },
-        serviceId: { not: null },
       },
-      select: { service: { select: { price: true } } },
+      include: {
+        services: {
+          include: { service: { select: { price: true } } },
+        },
+      },
     });
 
-    const revenue = bookings.reduce(
-      (sum, b) => sum + (b.service?.price || 0),
-      0,
-    );
+    const revenue = bookings.reduce((sum, b) => {
+      const bookingSum = b.services.reduce(
+        (s, bs) => s + (bs.service?.price || 0),
+        0,
+      );
+      return sum + bookingSum;
+    }, 0);
+
     return { period, revenue };
   }
 
@@ -102,11 +109,11 @@ export class DashboardService {
         companyId,
         status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
         date: { gte: start, lte: now },
-        serviceId: { not: null },
       },
-      select: {
-        date: true,
-        service: { select: { price: true } },
+      include: {
+        services: {
+          include: { service: { select: { price: true } } },
+        },
       },
     });
 
@@ -118,13 +125,21 @@ export class DashboardService {
 
     bookings.forEach((b) => {
       const d = format(b.date, 'yyyy-MM-dd');
-      data[d] += b.service?.price || 0;
+
+      // сумма по всем услугам брони
+      const bookingSum = b.services.reduce(
+        (sum, bs) => sum + (bs.service?.price || 0),
+        0,
+      );
+
+      data[d] += bookingSum;
     });
 
     return Object.entries(data)
       .map(([date, value]) => ({ date, value }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }
+
 
   async getBookingsCount(
     companyId: number,
@@ -217,7 +232,10 @@ export class DashboardService {
           ((daysInPeriod - 1) % 7 >= sch.day_of_week - 1 ? 1 : 0);
 
         totalAvailableMinutes += minutesPerDay * occurrences;
+        const dayIndex = sch.day_of_week === 0 ? 6 : sch.day_of_week - 1;
+
       }
+
 
       const bookings = await this.prisma.booking.findMany({
         where: {
@@ -225,15 +243,26 @@ export class DashboardService {
           specialistId: spec.id,
           date: { gte: start, lte: end },
           status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
-          serviceId: { not: null },
         },
-        select: { service: { select: { duration_min: true } } },
+        include: {
+          services: {
+            include: {
+              service: {
+                select: { duration_min: true },
+              },
+            },
+          },
+        },
       });
 
+
       const totalBookedMinutes = bookings.reduce(
-        (sum, b) => sum + (b.service?.duration_min || 0),
+        (sum, b) =>
+          sum +
+          b.services.reduce((s, bs) => s + (bs.service?.duration_min || 0), 0),
         0,
       );
+
 
       const loadPercent =
         totalAvailableMinutes > 0
@@ -262,34 +291,37 @@ export class DashboardService {
     period: 'month' = 'month',
   ): Promise<PopularService[]> {
     const { start, end } = this.getDateRange(period);
+
     const bookings = await this.prisma.booking.findMany({
       where: {
         companyId,
         date: { gte: start, lte: end },
         status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
-        serviceId: { not: null },
       },
-      select: {
-        service: { select: { id: true, name: true, price: true } },
+      include: {
+        services: {
+          include: {
+            service: { select: { id: true, name: true, price: true } },
+          },
+        },
       },
     });
 
-    const serviceMap = new Map<
-      number,
-      { name: string; count: number; revenue: number }
-    >();
+    const serviceMap = new Map<number, { name: string; count: number; revenue: number }>();
 
-    bookings.forEach((b) => {
-      if (b.service) {
-        const entry = serviceMap.get(b.service.id) || {
-          name: b.service.name,
-          count: 0,
-          revenue: 0,
-        };
-        entry.count++;
-        entry.revenue += b.service.price;
-        serviceMap.set(b.service.id, entry);
-      }
+    bookings.forEach((booking) => {
+      booking.services.forEach((bs) => {
+        if (bs.service) {
+          const entry = serviceMap.get(bs.service.id) || {
+            name: bs.service.name,
+            count: 0,
+            revenue: 0,
+          };
+          entry.count++;
+          entry.revenue += bs.service.price;
+          serviceMap.set(bs.service.id, entry);
+        }
+      });
     });
 
     const sorted = Array.from(serviceMap.values())
@@ -304,26 +336,41 @@ export class DashboardService {
     }));
   }
 
+
   async getLostMoney(
     companyId: number,
     period: 'month' = 'month',
   ): Promise<LostMoneyResult> {
     const { start, end } = this.getDateRange(period);
+
     const bookings = await this.prisma.booking.findMany({
       where: {
         companyId,
         status: BookingStatus.CANCELLED,
         date: { gte: start, lte: end },
-        serviceId: { not: null },
       },
-      select: { service: { select: { price: true } } },
+      include: {
+        services: {
+          include: {
+            service: { select: { price: true } },
+          },
+        },
+      },
     });
 
-    const lost = bookings.reduce((sum, b) => sum + (b.service?.price || 0), 0);
+    const lost = bookings.reduce((sum, booking) => {
+      const bookingTotal = booking.services.reduce(
+        (serviceSum, bs) => serviceSum + (bs.service?.price || 0),
+        0,
+      );
+      return sum + bookingTotal;
+    }, 0);
+
     const count = bookings.length;
 
     return { count, lost };
   }
+
 
   async getRepeatClients(
     companyId: number,
@@ -380,18 +427,26 @@ export class DashboardService {
           specialistId: spec.id,
           status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
           date: { gte: start, lte: end },
-          serviceId: { not: null },
         },
-        select: {
-          service: { select: { price: true } },
-          clientId: true,
+        include: {
+          services: {
+            include: { service: { select: { price: true } } },
+          },
         },
       });
 
+      // Считаем доход, суммируя цены всех услуг каждой брони
       const revenue = bookings.reduce(
-        (sum, b) => sum + (b.service?.price || 0),
+        (sum, booking) =>
+          sum +
+          booking.services.reduce(
+            (serviceSum, bs) => serviceSum + (bs.service?.price || 0),
+            0,
+          ),
         0,
       );
+
+      // Количество уникальных клиентов
       const uniqueClients = new Set(
         bookings.map((b) => b.clientId).filter(Boolean),
       ).size;
@@ -405,25 +460,35 @@ export class DashboardService {
     return bests[0] || { name: 'Нет данных', value: 0 };
   }
 
+
   async getAverageCheck(
     companyId: number,
     period: 'month' = 'month',
   ): Promise<number> {
     const { start, end } = this.getDateRange(period);
+
     const bookings = await this.prisma.booking.findMany({
       where: {
         companyId,
         status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
-        date: { gte: start, lte: end },
-        serviceId: { not: null },
       },
-      select: { service: { select: { price: true } } },
+      include: {
+        services: {
+          include: { service: { select: { price: true } } },
+        },
+      },
     });
 
     if (bookings.length === 0) return 0;
-    const total = bookings.reduce((sum, b) => sum + (b.service?.price || 0), 0);
-    return Math.round(total / bookings.length);
+    const totalRevenue = bookings.reduce(
+      (sum, b) =>
+        sum +
+        b.services.reduce((s, bs) => s + (bs.service?.price || 0), 0),
+      0,
+    );
+    return Math.round(totalRevenue / bookings.length);
   }
+
 
   async getPeakHours(
     companyId: number,
