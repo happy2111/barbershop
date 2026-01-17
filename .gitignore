@@ -3,6 +3,10 @@
 /node_modules
 /build
 
+backup_*
+default.conf
+nginx/
+
 # Logs
 logs
 *.log
