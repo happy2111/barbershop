@@ -175,30 +175,57 @@ ${t.booking.thanks}
     return booking;
   }
 
-  async findAll(hostname: string) {
+  async findAll(hostname: string, page: number, limit: number) {
     const company = await this.prisma.company.findUnique({
       where: { domain: hostname },
     });
 
     if (!company) throw new NotFoundException('Company not found');
 
-    return this.prisma.booking.findMany({
-      where: { companyId: company.id, isSystem: false },
-      include: {
-        client: true,
-        specialist: {
-          select: {
-            id: true,
-            name: true,
-            photo: true,
-            phone: true,
+    const skip = (page - 1) * limit;
+
+    const [bookings, totalCount] = await Promise.all([
+      this.prisma.booking.findMany({
+        where: {
+          companyId: company.id,
+          isSystem: false
+        },
+        // --- ДОБАВЛЕНА СОРТИРОВКА ---
+        orderBy: [
+          {
+            date: 'desc', // Сначала по дате (новые сверху)
+          },
+          {
+            start_time: 'desc', // Если даты одинаковые, сортируем по времени начала
+          }
+        ],
+        // ----------------------------
+        skip: skip,
+        take: limit,
+        include: {
+          client: true,
+          specialist: {
+            select: { id: true, name: true, photo: true, phone: true },
+          },
+          services: {
+            include: { service: { select: { name: true, price: true } } },
           },
         },
-        services: {
-          include: { service: { select: { name: true, price: true } } },
-        },
-      },
-    });
+      }),
+      this.prisma.booking.count({
+        where: { companyId: company.id, isSystem: false }
+      })
+    ]);
+
+    return {
+      data: bookings,
+      meta: {
+        total: totalCount,
+        page: page,
+        lastPage: Math.ceil(totalCount / limit),
+        limit: limit
+      }
+    };
   }
 
   async getBlockedTimes(companyId: number, specialistId: number) {

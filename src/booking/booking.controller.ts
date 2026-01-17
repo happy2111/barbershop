@@ -33,9 +33,19 @@ export class BookingController {
     return this.bookingService.create(dto, hostname, locale);
   }
 
+
+
   @Get()
-  findAll(@Query('hostname') hostname: string) {
-    return this.bookingService.findAll(hostname);
+  @UseGuards(JwtAuthGuard)
+  findAll(
+    @Query('hostname') hostname: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+
+    return this.bookingService.findAll(hostname, pageNum, limitNum);
   }
 
   @UseGuards(JwtAuthGuard)

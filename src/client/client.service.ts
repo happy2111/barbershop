@@ -117,17 +117,42 @@ export class ClientService {
     };
   }
 
-  async findAll(companyId: number) {
+  async findAll(companyId: number, page: number, limit: number) {
+    // Проверка существования компании
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
     });
     if (!company) throw new NotFoundException('Company not found');
 
-    return this.prisma.client.findMany({
-      where: { companyId },
-      include: { bookings: true },
-      orderBy: { id: 'asc' },
-    });
+    const skip = (page - 1) * limit;
+
+    // Выполняем запросы параллельно
+    const [clients, totalCount] = await Promise.all([
+      this.prisma.client.findMany({
+        where: { companyId },
+        include: {
+          _count: {
+            select: { bookings: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: skip,
+        take: limit,
+      }),
+      this.prisma.client.count({
+        where: { companyId }
+      })
+    ]);
+
+    return {
+      data: clients,
+      meta: {
+        total: totalCount,
+        page: page,
+        lastPage: Math.ceil(totalCount / limit),
+        limit: limit
+      }
+    };
   }
 
   async findOne(id: number, companyId: number) {
