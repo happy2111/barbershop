@@ -2,7 +2,7 @@ import {
   Body,
   Controller,
   Delete,
-  Get,
+  Get, Headers,
   Param,
   ParseIntPipe,
   Patch,
@@ -19,6 +19,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User } from '../auth/types/AuthRequest';
 import { TelegramAuthGuard } from '../telegram/guards/TelegramAuthGuard';
+import {Local} from "@prisma/client";
 
 @Controller('client')
 export class ClientController {
@@ -56,10 +57,11 @@ export class ClientController {
     @Body() dto: CreateClientDto,
     @Query('hostname') hostname: string,
     @Req() req: any,
+    @Headers('Accept-Language') local: Local
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
     const tgData: any = req.telegramUser;
-    return this.clientService.create(dto, hostname, tgData);
+    return this.clientService.create(dto, hostname, tgData, local);
   }
 
   @UseGuards(JwtAuthGuard)

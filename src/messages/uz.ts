@@ -1,0 +1,45 @@
+export const uz = {
+  booking: {
+    newTitle: "📌 *Yangi band qilish!*",
+    client: "Mijoz",
+    phone: "Telefon",
+    specialist: "Mutaxassis",
+    services: "Xizmatlar",
+    total: "Jami",
+    date: "Sana",
+    time: "Vaqt",
+    link: "Havola",
+    clientGreeting: "👋 Salom, {name}!",
+    clientSuccess: "Siz *{companyName}* ga muvaffaqiyatli yozildingiz.",
+    statusInfo: "🔔 *Holat:* Siz har doim quyidagi havola orqali holatni tekshirishingiz mumkin:",
+    thanks: "Bizni tanlaganingiz uchun rahmat!",
+    source: "Buyurtma manbasi",
+    sourceTelegram: "Telegram-bot",
+    sourceWeb: "Veb-sayt",
+  },
+  marketing: {
+    greeting: "👋 Salom, {clientName}!",
+    message: "*{booking.company.name}* ga oxirgi marta tashrif buyurganingizdan beri 20 kun o'tdi.",
+    message2: "Soch turmakni yangilash vaqti keldi! ✨",
+    info: "Bu yerda onlayn buyurtma bering:",
+    waitingYou: "Sizni yana ko'rishni intiqlik bilan kutamiz!"
+  },
+  statusMessages: {
+    confirmedTitle: "✅ *Band qilish tasdiqlandi!*",
+    confirmedBody: "Xushxabar, {name}! Sizning *{companyName}* dagi buyurtmangiz mutaxassis tomonidan tasdiqlandi.",
+    waitingYou: "Sizni kutib qolamiz! Agar rejalaringiz o'zgarsa, iltimos, bizga oldindan xabar bering.",
+
+    cancelledTitle: "❌ *Band qilish bekor qilindi*",
+    cancelledBody: "Salom, {name}. Afsuski, sizning *{companyName}* dagi {date} soat {time} dagi buyurtmangiz bekor qilindi.",
+    cancelledFooter: "Savollaringiz bo'lsa, biz bilan bog'lanishingiz yoki quyidagi havola orqali boshqa vaqtni tanlashingiz mumkin:",
+  },
+  common: {
+    details: "Tafsilotlar",
+    specialist: "Mutaxassis",
+    services: "Xizmatlar",
+    date: "Sana",
+    time: "Vaqt",
+    total: "Jami",
+    sum: "so'm",
+  },
+};

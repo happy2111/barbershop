@@ -9,11 +9,12 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  Headers
 } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
-import { BookingStatus } from '@prisma/client';
+import {BookingStatus, Local} from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../auth/types/AuthRequest';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -26,8 +27,10 @@ export class BookingController {
   @Post()
   create(
     @Body() dto: CreateBookingDto,
-    @Query('hostname') hostname: string) {
-    return this.bookingService.create(dto, hostname);
+    @Query('hostname') hostname: string,
+    @Headers('Accept-Language') locale: Local
+  ) {
+    return this.bookingService.create(dto, hostname, locale);
   }
 
   @Get()
@@ -63,9 +66,10 @@ export class BookingController {
   changeStatus(
     @Param('id') id: number,
     @Param('status') status: BookingStatus,
-    @Query ('hostname') hostname: string
+    @Query ('hostname') hostname: string,
+    @Headers('Accept-Language') locale: "uz" | "ru" | "en" | undefined
   ) {
-    return this.bookingService.changeStatus(+id, status, hostname);
+    return this.bookingService.changeStatus(+id, status, hostname, locale);
   }
 
   @UseGuards(JwtAuthGuard)
