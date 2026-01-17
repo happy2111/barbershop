@@ -57,8 +57,9 @@ export class ClientController {
     @Body() dto: CreateClientDto,
     @Query('hostname') hostname: string,
     @Req() req: any,
-    @Headers('Accept-Language') local: Local
+    @Headers('x-client-local') local: Local
   ) {
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
     const tgData: any = req.telegramUser;
     return this.clientService.create(dto, hostname, tgData, local);

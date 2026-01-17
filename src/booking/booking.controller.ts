@@ -28,7 +28,7 @@ export class BookingController {
   create(
     @Body() dto: CreateBookingDto,
     @Query('hostname') hostname: string,
-    @Headers('Accept-Language') locale: Local
+    @Headers('x-client-local') locale: Local
   ) {
     return this.bookingService.create(dto, hostname, locale);
   }
@@ -67,7 +67,7 @@ export class BookingController {
     @Param('id') id: number,
     @Param('status') status: BookingStatus,
     @Query ('hostname') hostname: string,
-    @Headers('Accept-Language') locale: "uz" | "ru" | "en" | undefined
+    @Headers('x-client-local') locale: "uz" | "ru" | "en" | undefined
   ) {
     return this.bookingService.changeStatus(+id, status, hostname, locale);
   }
