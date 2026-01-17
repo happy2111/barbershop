@@ -14,11 +14,11 @@ model company {
   createdAt DateTime @default(now())
 
   webAppUrl        String?
-  telegramBotToken String?
+  telegramBotToken String? // Токен телеграм бота
 
-  telegramChatId   String?
-  telegramEnabled  Boolean @default(false)
-  marketingEnabled Boolean @default(false)
+  telegramChatId   String? // ChatId Телеграмм группы
+  telegramEnabled  Boolean @default(false) // рассылка на через телеграм об
+  marketingEnabled Boolean @default(false) // переключеталь уведомление каждый 20 дней
 
   specialists       specialist[]
   services          service[]
@@ -27,7 +27,7 @@ model company {
   bookings          booking[]
   schedules         schedule[]
 
-  telegramTokens TelegramLinkToken[]
+  telegramTokens TelegramLinkToken[] //
 
   @@map("companies")
 }
@@ -117,12 +117,15 @@ model client {
   companyId Int
   name      String?
   phone     String
+  local     Local   @default(uz)
 
   telegramId        BigInt?
   telegramUsername  String?
   telegramFirstName String?
   telegramLastName  String?
   telegramLang      String?
+
+  lastMarketingSentAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -193,4 +196,9 @@ enum BookingStatus {
 enum Role {
   ADMIN
   SPECIALIST
+}
+
+enum Local {
+  ru
+  uz
 }

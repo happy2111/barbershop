@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
-import { Prisma } from '@prisma/client';
+import {Local, Prisma} from '@prisma/client';
 
 export interface TelegramUser {
   id: number;
@@ -43,6 +43,7 @@ export class ClientService {
     dto: CreateClientDto,
     hostname: string,
     tgDataFromGuard?: TelegramValidatedData,
+    local: Local = "uz"
   ) {
     const company = await this.prisma.company.findUnique({
       where: { domain: hostname },
@@ -82,11 +83,12 @@ export class ClientService {
     });
 
 
-    // ✏️ 2. ЕСЛИ НАШЛИ — обновляем
+    //  2. ЕСЛИ НАШЛИ — обновляем
     if (existingClient) {
       const updated = await this.prisma.client.update({
         where: { id: existingClient.id },
         data: {
+          local,
           name: dto.name,
           ...telegramFields,
         },
@@ -98,12 +100,13 @@ export class ClientService {
       };
     }
 
-    // ➕ 3. ЕСЛИ НЕ НАШЛИ — создаём
+    // 3. ЕСЛИ НЕ НАШЛИ — создаём
     const created = await this.prisma.client.create({
       data: {
         companyId: company.id,
         name: dto.name,
         phone: dto.phone,
+        local,
         ...telegramFields,
       },
     });

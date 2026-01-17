@@ -6,10 +6,11 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
-import { BookingStatus } from '@prisma/client';
+import {BookingStatus, Local} from '@prisma/client';
 import { TelegramService } from '../telegram/telegram.service';
 import { BlockTimeDto } from '../profile/dto/block-time.dto';
 import { addMinutes } from '../utils/addMinutes'
+import { translations } from '../messages/index.js';
 
 @Injectable()
 export class BookingService {
@@ -47,10 +48,11 @@ export class BookingService {
     }
   }
 
+
   //---------------------------------------------
   // CREATE
   //---------------------------------------------
-  async create(dto: CreateBookingDto, hostname: string) {
+  async create(dto: CreateBookingDto, hostname: string, locale: Local = "uz") {
     const company = await this.prisma.company.findUnique({
       where: { domain: hostname },
     });
@@ -68,7 +70,6 @@ export class BookingService {
 
     const end_time = addMinutes(dto.start_time, totalMinutes);
 
-    // --- Проверяем занятость специалиста ---
     await this.ensureTimeSlotAvailable(
       dto.specialistId,
       dto.date,
@@ -103,38 +104,39 @@ export class BookingService {
 
 
 
-
+    const t = translations[locale] || translations.uz;
 
     if (company.telegramEnabled && company.telegramBotToken) {
+      const totalPrice = booking.services.reduce((sum, bs) => sum + bs.service.price, 0);
       const servicesText = booking.services
         .map((bs) => `• ${bs.service.name} — ${bs.service.price} сум`)
         .join('\n');
+      const sourceText = booking.client?.telegramId
+        ? t.booking.sourceTelegram
+        : t.booking.sourceWeb;
 
-      const totalPrice = booking.services.reduce(
-        (sum, bs) => sum + bs.service.price,
-        0,
-      );
+      // --- СООБЩЕНИЕ АДМИНУ ---
+      const adminMessage = `
+${t.booking.newTitle}
 
-      const message = `
-📌 *Новое бронирование!*
-
-Клиент: ${booking?.client?.name ?? 'Без имени'}
-Телефон: ${booking?.client?.phone}
-Специалист: ${booking.specialist.name}
-*Услуги:*
+${t.booking.source}: ${sourceText} 
+${t.booking.client}: ${booking?.client?.name ?? '---'}
+${t.booking.phone}: ${booking?.client?.phone}
+${t.booking.specialist}: ${booking.specialist.name}
+*${t.booking.services}:*
 ${servicesText}
 
-*Итого:* ${totalPrice} сум
-Дата: ${booking.date.toLocaleDateString()}
-Время: ${booking.start_time} – ${booking.end_time}
-Ссылка: https://${company.domain}/booking/${booking.id}
+*${t.booking.total}:* ${totalPrice} сум
+${t.booking.date}: ${booking.date.toLocaleDateString()}
+${t.booking.time}: ${booking.start_time} – ${booking.end_time}
+${t.booking.link}: https://${company.domain}/booking/${booking.id}
 `;
 
       // --- УВЕДОМЛЕНИЕ АДМИНУ (в группу компании) ---
       if (company.telegramChatId) {
         await this.telegramService.sendMessage(
           company.telegramChatId,
-          message,
+          adminMessage,
           company.telegramBotToken,
         );
       }
@@ -142,30 +144,26 @@ ${servicesText}
       // --- УВЕДОМЛЕНИЕ КЛИЕНТУ (в личные сообщения) ---
       // Проверяем, есть ли у клиента telegramId
       if (booking.client?.telegramId) {
-        // Определяем имя для обращения: приоритет на имя из БД, затем на имя из Telegram
-        const displayName =
-          booking.client.name || 'клиент';
+        const displayName = booking.client.name || 'mijoz';
 
         const clientMessage = `
-👋 Привет, ${displayName}! 
+${t.booking.clientGreeting.replace('{name}', displayName)}
 
-Вы успешно записались в *${company.name}*.
+${t.booking.clientSuccess.replace('{companyName}', company.name)}
 
-*Детали вашей записи:*
-*Специалист:* ${booking.specialist.name}
-*Услуги:*
+*${t.booking.specialist}:* ${booking.specialist.name}
+*${t.booking.services}:*
 ${servicesText}
 
-*Итого:* ${totalPrice} сум
-*Дата:* ${booking.date.toLocaleDateString('ru-RU')}
-*Время:* ${booking.start_time}
+*${t.booking.total}:* ${totalPrice} сум
+*${t.booking.date}:* ${booking.date.toLocaleDateString()}
+*${t.booking.time}:* ${booking.start_time}
 
-🔔 *Статус записи:* Вы всегда можете проверить актуальный статус вашей брони по ссылке ниже. Если специалист подтвердит или изменит время, информация обновится там:
+${t.booking.statusInfo}
 🔗 https://${company.domain}/booking/${booking.id}
 
-Спасибо, что выбрали нас!
+${t.booking.thanks}
 `;
-
         await this.telegramService.sendMessage(
           booking.client.telegramId.toString(),
           clientMessage,
@@ -304,55 +302,54 @@ ${servicesText}
     return this.prisma.booking.delete({ where: { id } });
   }
 
-  async changeStatus(id: number, status: BookingStatus, hostname: string) {
+  async changeStatus(id: number, status: BookingStatus, hostname: string, locale: 'ru' | 'uz' | 'en' = 'uz') {
     const booking = await this.findOne(id);
-    const company = await this.prisma.company.findUnique({
-      where: { domain: hostname },
-    });
+    const company = await this.prisma.company.findUnique({ where: { domain: hostname } });
 
     if (!company) throw new NotFoundException('Company not found');
 
-    // Проверяем наличие клиента и ID телеграма
-    if (booking.client?.telegramId) {
-      const displayName = booking.client.name || 'клиент';
-      const dateStr = booking.date.toLocaleDateString('ru-RU');
-      const bookingUrl = `https://${company.domain}/booking/${booking.id}`;
-      const servicesText = booking.services
-        .map((bs) => `• ${bs.service.name} — ${bs.service.price} сум`)
-        .join('\n');
+    const t = translations[locale] || translations.uz;
 
-      const totalPrice = booking.services.reduce(
-        (sum, bs) => sum + bs.service.price,
-        0,
-      );
+    if (booking.client?.telegramId && company.telegramBotToken) {
+      const displayName = booking.client.name || (locale === 'ru' ? 'клиент' : 'mijoz');
+      const dateStr = booking.date.toLocaleDateString(locale === 'uz' ? 'uz-UZ' : 'ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      const bookingUrl = `https://${company.domain}/booking/${booking.id}`;
 
       let message = '';
 
       if (status === BookingStatus.CONFIRMED) {
+        const servicesText = booking.services.map(bs => `• ${bs.service.name}`).join('\n');
+
         message = `
-✅ *Запись подтверждена!*
+${t.statusMessages.confirmedTitle}
 
-Приятные новости, ${displayName}! Ваша запись в *${company.name}* подтверждена специалистом.
+${t.statusMessages.confirmedBody.replace('{name}', displayName).replace('{companyName}', company.name)}
 
-*Детали:*
-*Специалист:* ${booking.specialist.name}
-*Услуги:*
+*${t.common.details}:*
 ${servicesText}
 
-*Итого:* ${totalPrice} сум
-*Дата:* ${dateStr}
-*Время:* ${booking.start_time}
+*${t.common.date}:* ${dateStr}
+*${t.common.time}:* ${booking.start_time}
 
-Ждем вас! Если планы изменятся, пожалуйста, сообщите нам заранее или отмените.
+${t.statusMessages.waitingYou}
 🔗 ${bookingUrl}
 `;
-      } else if (status === BookingStatus.CANCELLED) {
+      }
+      else if (status === BookingStatus.CANCELLED) {
         message = `
-❌ *Запись отменена*
+${t.statusMessages.cancelledTitle}
 
-Здравствуйте, ${displayName}. К сожалению, ваша запись в *${company.name}* на ${dateStr} в ${booking.start_time} была отменена.
+${t.statusMessages.cancelledBody
+          .replace('{name}', displayName)
+          .replace('{companyName}', company.name)
+          .replace('{date}', dateStr)
+          .replace('{time}', booking.start_time)}
 
-Если у вас возникли вопросы, вы можете связаться с нами или выбрать другое время для записи по ссылке:
+${t.statusMessages.cancelledFooter}
 🔗 https://${company.domain}
 `;
       }
@@ -361,7 +358,7 @@ ${servicesText}
         await this.telegramService.sendMessage(
           booking.client.telegramId.toString(),
           message,
-          company.telegramBotToken ?? undefined,
+          company.telegramBotToken,
         );
       }
     }
