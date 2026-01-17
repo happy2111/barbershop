@@ -22,9 +22,10 @@ async function bootstrap() {
       'https://www.romitan-barbershop.uz',
       'https://romitan-barbershop.uz',
       'https://hycodemo.vercel.app',
+
     ],
     credentials: true,
-    allowedHeaders: 'Content-Type, Accept, Authorization, x-telegram-init-data',
+    allowedHeaders: 'Content-Type, Accept, Authorization, x-telegram-init-data, x-client-local',
     exposedHeaders: ['set-cookie'],
   });
 
