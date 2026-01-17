@@ -4,6 +4,7 @@ export interface CurrentUserPayload {
   id: number;
   phone: string;
   role: 'ADMIN' | 'SPECIALIST';
+  companyId: number;
 }
 
 export const CurrentUser = createParamDecorator(

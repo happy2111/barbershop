@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 
 import { JwtPayload } from './types/JwPayload';
+import {Role} from "@prisma/client";
 
 @Injectable()
 export class AuthService {
@@ -39,7 +40,7 @@ export class AuthService {
   private async signTokens(user: {
     id: number;
     phone: string;
-    role: string;
+    role: Role;
     companyId: number;
   }) {
     const accessExpiresInStr = this.config.get<string>(
@@ -197,14 +198,38 @@ export class AuthService {
       refreshExpiresIn,
       7 * 24 * 60 * 60 * 1000,
     );
-    // const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
+    const isProd = process.env.NODE_ENV === 'production';
 
     return {
       httpOnly: true,
-      secure: true, // Всегда true для HTTPS
-      sameSite: 'none' as const, // Разрешаем кросс-доменные куки
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
       path: '/',
       maxAge,
-    };
+    } as const;
   }
+
+  getAccessCookieOptions() {
+    const accessExpiresIn = this.config.get<string>(
+      'JWT_ACCESS_EXPIRES_IN',
+      '15m',
+    );
+
+    const maxAge = this.parseDurationToMs(
+      accessExpiresIn,
+      15 * 60 * 1000,
+    );
+
+    const isProd = process.env.NODE_ENV === 'production';
+
+
+    return {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+      maxAge,
+    } as const;
+  }
+
 }

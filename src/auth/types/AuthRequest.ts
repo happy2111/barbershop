@@ -1,11 +1,12 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
+import {Role} from "@prisma/client";
 
 interface AuthRequest extends Request {
   user?: {
     id: number;
     phone: string;
-    role: string;
+    role: Role;
     companyId: number;
   };
 }
@@ -16,3 +17,4 @@ export const User = createParamDecorator(
     return req.user;
   },
 );
+

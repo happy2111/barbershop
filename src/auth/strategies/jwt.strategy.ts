@@ -12,7 +12,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req) => req?.cookies?.accessToken,
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });
@@ -20,12 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload) {
     const specialist = await this.prisma.specialist.findUnique({
-      where: {
-        companyId_phone: {
-          companyId: payload.companyId,
-          phone: payload.phone,
-        },
-      },
+      where: { id: payload.sub }
     });
 
     if (!specialist) {

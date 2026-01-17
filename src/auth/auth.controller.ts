@@ -1,7 +1,16 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import {Body, Controller, Get, Post, Req, Res, UseGuards} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import type { Response, Request } from 'express';
+import {JwtAuthGuard} from "./guards/jwt-auth.guard";
+import {User} from "./types/AuthRequest";
+
+interface JwtUser {
+  id: number;
+  role: 'ADMIN' | 'SPECIALIST';
+  companyId: number | null;
+  name: string | null;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -19,7 +28,13 @@ export class AuthController {
       refreshToken,
       this.authService.getRefreshCookieOptions(),
     );
-    return { accessToken, user };
+
+    res.cookie(
+      'accessToken',
+      accessToken,
+      this.authService.getAccessCookieOptions(),
+    );
+    return { user };
   }
 
   @Post('refresh')
@@ -38,14 +53,34 @@ export class AuthController {
       newRt,
       this.authService.getRefreshCookieOptions(),
     );
-    return { accessToken, user };
+
+    res.cookie(
+      'accessToken',
+      accessToken,
+      this.authService.getAccessCookieOptions(),
+    );
+    return { user };
   }
 
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies?.refreshToken as string | undefined;
     await this.authService.logout(refreshToken);
+    res.clearCookie('accessToken', { path: '/' });
     res.clearCookie('refreshToken', { path: '/' });
+
     return { success: true };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@User() user: JwtUser) {
+    return {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+    };
+  }
+
 }
