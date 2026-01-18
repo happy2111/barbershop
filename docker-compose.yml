@@ -4,9 +4,9 @@ services:
     container_name: hyco_postgres
     restart: always
     environment:
-      POSTGRES_USER: hy
-      POSTGRES_PASSWORD: updown2Oo
-      POSTGRES_DB: barbershop_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
