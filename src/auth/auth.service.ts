@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 
 import { JwtPayload } from './types/JwPayload';
+import {Role} from "@prisma/client";
 
 @Injectable()
 export class AuthService {
@@ -39,8 +40,10 @@ export class AuthService {
   private async signTokens(user: {
     id: number;
     phone: string;
-    role: string;
+    role: Role;
     companyId: number;
+    photo: string | null;
+    name: string;
   }) {
     const accessExpiresInStr = this.config.get<string>(
       'JWT_ACCESS_EXPIRES_IN',
@@ -56,6 +59,8 @@ export class AuthService {
       phone: user.phone,
       role: user.role,
       companyId: user.companyId,
+      photo: user.photo || '',
+      name: user.name
     };
 
     const accessToken = await this.jwt.signAsync(payload, {
@@ -106,6 +111,8 @@ export class AuthService {
       phone: specialist.phone,
       role: specialist.role,
       companyId: specialist.companyId,
+      name: specialist.name,
+      photo: specialist.photo
     });
 
     await this.setRefreshToken(specialist.id, refreshToken);
@@ -142,6 +149,7 @@ export class AuthService {
         role: true,
         companyId: true,
         refreshToken: true,
+        photo: true
       }, // выбираем только нужное
     });
 
@@ -158,6 +166,8 @@ export class AuthService {
       phone: specialist.phone,
       role: specialist.role,
       companyId: specialist.companyId,
+      name: specialist.name,
+      photo: specialist.photo
     });
     await this.setRefreshToken(specialist.id, refreshToken);
     return {
@@ -197,14 +207,38 @@ export class AuthService {
       refreshExpiresIn,
       7 * 24 * 60 * 60 * 1000,
     );
-    // const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
+    const isProd = process.env.NODE_ENV === 'production';
 
     return {
       httpOnly: true,
-      secure: true, // Всегда true для HTTPS
-      sameSite: 'none' as const, // Разрешаем кросс-доменные куки
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
       path: '/',
       maxAge,
-    };
+    } as const;
   }
+
+  getAccessCookieOptions() {
+    const accessExpiresIn = this.config.get<string>(
+      'JWT_ACCESS_EXPIRES_IN',
+      '15m',
+    );
+
+    const maxAge = this.parseDurationToMs(
+      accessExpiresIn,
+      15 * 60 * 1000,
+    );
+
+    const isProd = process.env.NODE_ENV === 'production';
+
+
+    return {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+      maxAge,
+    } as const;
+  }
+
 }

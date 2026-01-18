@@ -25,8 +25,7 @@ async function bootstrap() {
 
     ],
     credentials: true,
-    allowedHeaders: 'Content-Type, Accept, Authorization, x-telegram-init-data, x-client-local',
-    exposedHeaders: ['set-cookie'],
+    allowedHeaders: 'Content-Type, Accept, Authorization, x-telegram-init-data, x-client-locale',
   });
 
   const UPLOAD_PATH = '/var/www/barbershop_uploads';
