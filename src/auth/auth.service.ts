@@ -42,6 +42,8 @@ export class AuthService {
     phone: string;
     role: Role;
     companyId: number;
+    photo: string | null;
+    name: string;
   }) {
     const accessExpiresInStr = this.config.get<string>(
       'JWT_ACCESS_EXPIRES_IN',
@@ -57,6 +59,8 @@ export class AuthService {
       phone: user.phone,
       role: user.role,
       companyId: user.companyId,
+      photo: user.photo || '',
+      name: user.name
     };
 
     const accessToken = await this.jwt.signAsync(payload, {
@@ -107,6 +111,8 @@ export class AuthService {
       phone: specialist.phone,
       role: specialist.role,
       companyId: specialist.companyId,
+      name: specialist.name,
+      photo: specialist.photo
     });
 
     await this.setRefreshToken(specialist.id, refreshToken);
@@ -143,6 +149,7 @@ export class AuthService {
         role: true,
         companyId: true,
         refreshToken: true,
+        photo: true
       }, // выбираем только нужное
     });
 
@@ -159,6 +166,8 @@ export class AuthService {
       phone: specialist.phone,
       role: specialist.role,
       companyId: specialist.companyId,
+      name: specialist.name,
+      photo: specialist.photo
     });
     await this.setRefreshToken(specialist.id, refreshToken);
     return {

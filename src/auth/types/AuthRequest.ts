@@ -8,6 +8,8 @@ interface AuthRequest extends Request {
     phone: string;
     role: Role;
     companyId: number;
+    name: string;
+    photo: string;
   };
 }
 

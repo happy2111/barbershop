@@ -5,4 +5,6 @@ export interface JwtPayload {
   phone: string;
   role: Role;
   companyId: number;
+  name: string;
+  photo: string;
 }

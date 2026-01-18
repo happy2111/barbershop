@@ -34,6 +34,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       phone: specialist.phone,
       role: specialist.role,
       companyId: specialist.companyId,
+      name: specialist.name,
+      photo: specialist.photo
     };
   }
 }
