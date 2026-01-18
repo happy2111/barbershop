@@ -43,6 +43,20 @@ services:
     networks:
       - hyco_network
 
+  prisma_studio:
+    image: node:20-alpine
+    container_name: hyco_prisma_studio
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    ports:
+      - "5555:5555"
+    command: npx prisma studio --browser none --port 5555
+    networks:
+      - hyco_network
+
 
 volumes:
   postgres_data:
