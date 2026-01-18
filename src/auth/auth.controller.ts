@@ -11,6 +11,7 @@ interface JwtUser {
   companyId: number | null;
   name: string | null;
   photo: string | null;
+  phone: string;
 }
 
 @Controller('auth')
@@ -80,6 +81,7 @@ export class AuthController {
       id: user.id,
       name: user.name,
       role: user.role,
+      phone: user.phone,
       companyId: user.companyId,
       photo: user.photo
     };

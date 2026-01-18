@@ -179,6 +179,7 @@ export class AuthService {
         name: specialist.name,
         role: specialist.role,
         companyId: specialist.companyId,
+        photo: specialist.photo
       },
     };
   }
@@ -194,7 +195,6 @@ export class AuthService {
         data: { refreshToken: null },
       });
     } catch {
-      // ignore invalid token for logout to be idempotent
     }
   }
 
