@@ -51,9 +51,6 @@ export class BookingController {
   @UseGuards(JwtAuthGuard)
   @Get('/blocked')
   getBlockedTimes(@User() user: { id: number; companyId: number }) {
-    console.log(user);
-    console.log(typeof user.id, typeof user.companyId);
-
     return this.bookingService.getBlockedTimes(user.companyId, user.id);
   }
 
