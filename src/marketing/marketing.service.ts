@@ -127,6 +127,7 @@ ${t.marketing.waitingYou}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleBookingReminders() {
+    this.logger.log('Starting booking reminders...');
     const now = dayjs().tz(this.TZ);
 
     const startOfDay = now.startOf('day').toDate();
