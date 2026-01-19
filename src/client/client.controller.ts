@@ -2,7 +2,7 @@ import {
   Body,
   Controller,
   Delete,
-  Get, Headers,
+  Get, Headers, Logger,
   Param,
   ParseIntPipe,
   Patch,
@@ -65,8 +65,8 @@ export class ClientController {
     @Req() req: any,
     @Headers('x-client-local') local: Local
   ) {
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
+    Logger.log(local);
+    console.log(local);
     const tgData: any = req.telegramUser;
     return this.clientService.create(dto, hostname, tgData, local);
   }

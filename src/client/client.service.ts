@@ -39,83 +39,83 @@ export class ClientService {
     };
   }
 
-  async create(
-    dto: CreateClientDto,
-    hostname: string,
-    tgDataFromGuard?: TelegramValidatedData,
-    local: Local = "uz"
-  ) {
-    const company = await this.prisma.company.findUnique({
-      where: { domain: hostname },
-    });
+    async create(
+      dto: CreateClientDto,
+      hostname: string,
+      tgDataFromGuard?: TelegramValidatedData,
+      local: Local = "uz"
+    ) {
+      const company = await this.prisma.company.findUnique({
+        where: { domain: hostname },
+      });
 
-    if (!company) {
-      throw new BadRequestException('Company not found');
-    }
+      if (!company) {
+        throw new BadRequestException('Company not found');
+      }
 
-    const tgUser = tgDataFromGuard?.user;
+      const tgUser = tgDataFromGuard?.user;
 
-    const finalTelegramId: bigint | null = tgUser?.id
-      ? BigInt(tgUser.id)
-      : dto.telegramId
-        ? BigInt(dto.telegramId)
-        : null;
+      const finalTelegramId: bigint | null = tgUser?.id
+        ? BigInt(tgUser.id)
+        : dto.telegramId
+          ? BigInt(dto.telegramId)
+          : null;
 
-    const telegramFields = {
-      telegramId: finalTelegramId,
-      telegramUsername: tgUser?.username ?? dto.telegramUsername ?? null,
-      telegramFirstName: tgUser?.first_name ?? dto.telegramFirstName ?? null,
-      telegramLastName: tgUser?.last_name ?? dto.telegramLastName ?? null,
-      telegramLang: tgUser?.language_code ?? dto.telegramLang ?? null,
-    };
+      const telegramFields = {
+        telegramId: finalTelegramId,
+        telegramUsername: tgUser?.username ?? dto.telegramUsername ?? null,
+        telegramFirstName: tgUser?.first_name ?? dto.telegramFirstName ?? null,
+        telegramLastName: tgUser?.last_name ?? dto.telegramLastName ?? null,
+        telegramLang: tgUser?.language_code ?? dto.telegramLang ?? null,
+      };
 
-    const orConditions: Prisma.clientWhereInput[] = [{ phone: dto.phone }];
+      const orConditions: Prisma.clientWhereInput[] = [{ phone: dto.phone }];
 
-    if (finalTelegramId) {
-      orConditions.push({ telegramId: finalTelegramId });
-    }
+      if (finalTelegramId) {
+        orConditions.push({ telegramId: finalTelegramId });
+      }
 
-    const existingClient = await this.prisma.client.findFirst({
-      where: {
-        companyId: company.id,
-        OR: orConditions,
-      },
-    });
+      const existingClient = await this.prisma.client.findFirst({
+        where: {
+          companyId: company.id,
+          OR: orConditions,
+        },
+      });
 
 
-    //  2. ЕСЛИ НАШЛИ — обновляем
-    if (existingClient) {
-      const updated = await this.prisma.client.update({
-        where: { id: existingClient.id },
+      //  2. ЕСЛИ НАШЛИ — обновляем
+      if (existingClient) {
+        const updated = await this.prisma.client.update({
+          where: { id: existingClient.id },
+          data: {
+            local,
+            name: dto.name,
+            ...telegramFields,
+          },
+        });
+
+        return {
+          ...updated,
+          telegramId: updated.telegramId?.toString() ?? null,
+        };
+      }
+
+      // 3. ЕСЛИ НЕ НАШЛИ — создаём
+      const created = await this.prisma.client.create({
         data: {
-          local,
+          companyId: company.id,
           name: dto.name,
+          phone: dto.phone,
+          local,
           ...telegramFields,
         },
       });
 
       return {
-        ...updated,
-        telegramId: updated.telegramId?.toString() ?? null,
+        ...created,
+        telegramId: created.telegramId?.toString() ?? null,
       };
     }
-
-    // 3. ЕСЛИ НЕ НАШЛИ — создаём
-    const created = await this.prisma.client.create({
-      data: {
-        companyId: company.id,
-        name: dto.name,
-        phone: dto.phone,
-        local,
-        ...telegramFields,
-      },
-    });
-
-    return {
-      ...created,
-      telegramId: created.telegramId?.toString() ?? null,
-    };
-  }
 
   async findAll(companyId: number, page: number, limit: number) {
     // Проверка существования компании
