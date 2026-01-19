@@ -135,10 +135,10 @@ ${t.marketing.waitingYou}
     // 1. Берем все подтвержденные записи на сегодня, которые еще не уведомлены
     const bookings = await this.prisma.booking.findMany({
       where: {
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        // date: {
+        //   gte: startOfDay,
+        //   lte: endOfDay,
+        // },
         status: BookingStatus.CONFIRMED,
         reminderSent: false,
       },
@@ -162,7 +162,7 @@ ${t.marketing.waitingYou}
       const diffInMinutes = bookingDateTime.diff(now, 'minute');
 
       // 4. Если до записи осталось от 30 до 60 минут — отправляем
-      if (diffInMinutes > 0 && diffInMinutes <= 60) {
+      if (diffInMinutes >= 5 && diffInMinutes <= 60) {
         await this.sendReminder(booking);
       }
     }
