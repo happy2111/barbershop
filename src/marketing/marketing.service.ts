@@ -4,10 +4,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BookingStatus } from '@prisma/client';
 import {translations} from "../messages";
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 @Injectable()
 export class MarketingService {
   private readonly logger = new Logger(MarketingService.name);
+  private readonly TZ = "Asia/Tashkent";
 
   constructor(
     private prisma: PrismaService,
@@ -16,14 +23,14 @@ export class MarketingService {
 
   @Cron(CronExpression.EVERY_DAY_AT_10AM)
   async handleRetentionNewsletter() {
+
     this.logger.log('Starting daily marketing newsletter...');
 
-    const today = new Date();
-    const twentyDaysAgo = new Date();
-    twentyDaysAgo.setDate(today.getDate() - 20);
+    const base = dayjs().tz(this.TZ).subtract(20, 'day');
 
-    const startOfDay = new Date(new Date(twentyDaysAgo).setHours(0, 0, 0, 0));
-    const endOfDay = new Date(new Date(twentyDaysAgo).setHours(23, 59, 59, 999));
+    const startOfDay = base.startOf('day').toDate();
+    const endOfDay = base.endOf('day').toDate();
+
 
     // Ищем бронирования
     const bookings = await this.prisma.booking.findMany({
@@ -103,7 +110,7 @@ ${t.marketing.waitingYou}
         // 4. ОБЯЗАТЕЛЬНО обновляем дату отправки
         await this.prisma.client.update({
           where: { id: booking.client.id },
-          data: { lastMarketingSentAt: new Date() }
+          data: { lastMarketingSentAt: dayjs().tz(this.TZ).toDate() }
         });
 
         // Небольшая задержка, чтобы не спамить в API Telegram
@@ -117,4 +124,92 @@ ${t.marketing.waitingYou}
       }
     }
   }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handleBookingReminders() {
+    const now = dayjs().tz(this.TZ);
+
+    const startOfDay = now.startOf('day').toDate();
+    const endOfDay = now.endOf('day').toDate();
+
+    // 1. Берем все подтвержденные записи на сегодня, которые еще не уведомлены
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        status: BookingStatus.CONFIRMED,
+        reminderSent: false,
+      },
+      include: {
+        client: true,
+        company: true,
+        specialist: true,
+      },
+    });
+
+    for (const booking of bookings) {
+      // 2. Склеиваем дату из базы и строку времени "10:40"
+      // booking.date (Date) + booking.start_time ("10:40")
+      const [hours, minutes] = booking.start_time.split(':').map(Number);
+      const bookingDateTime = dayjs(booking.date)
+        .tz(this.TZ)
+        .hour(hours)
+        .minute(minutes);
+
+      // 3. Считаем разницу в минутах между "сейчас" и "временем записи"
+      const diffInMinutes = bookingDateTime.diff(now, 'minute');
+
+      // 4. Если до записи осталось от 30 до 60 минут — отправляем
+      if (diffInMinutes > 0 && diffInMinutes <= 60) {
+        await this.sendReminder(booking);
+      }
+    }
+  }
+
+  private async sendReminder(booking: any) {
+    try {
+      const clientLocal = booking.client.local || 'uz';
+      const t = translations[clientLocal];
+
+      // Подготовка данных для сообщения
+      const clientName = booking.client.name || booking.client.telegramFirstName || '';
+      const companyName = booking.company.name;
+      const time = booking.start_time;
+      const specialistName = booking.specialist.name;
+
+      // Формирование текста сообщения
+      const message = `
+${t.reminder.title}
+
+${t.reminder.body
+        .replace('{name}', clientName)
+        .replace('{time}', time)
+        .replace('{companyName}', companyName)}
+
+${t.reminder.specialist.replace('{specialistName}', specialistName)}
+
+${t.reminder.footer}
+`.trim();
+
+      // Отправка в Telegram
+      await this.telegramService.sendMessage(
+        booking.client.telegramId.toString(),
+        message,
+        booking.company.telegramBotToken,
+      );
+
+      // Помечаем в базе как отправленное
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: { reminderSent: true },
+      });
+
+      this.logger.log(`Reminder sent to client ${booking.client.id} for booking ${booking.id}`);
+    } catch (e: any) {
+      this.logger.error(`Error sending reminder for booking ${booking.id}: ${e.message}`);
+    }
+  }
+
 }

@@ -33,6 +33,12 @@ export const uz = {
     cancelledBody: "Salom, {name}. Afsuski, sizning *{companyName}* dagi {date} soat {time} dagi buyurtmangiz bekor qilindi.",
     cancelledFooter: "Savollaringiz bo'lsa, biz bilan bog'lanishingiz yoki quyidagi havola orqali boshqa vaqtni tanlashingiz mumkin:",
   },
+  reminder: {
+    title: "⏰ *Eslatma!*",
+    body: "Salom, {name}! Bugun soat {time} da *{companyName}* dagi qabulingizni eslatib o'tamiz.",
+    specialist: "Mutaxassis: {specialistName}",
+    footer: "Sizni kutamiz!",
+  },
   common: {
     details: "Tafsilotlar",
     specialist: "Mutaxassis",

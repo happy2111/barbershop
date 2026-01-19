@@ -164,6 +164,7 @@ model booking {
   isSystem     Boolean           @default(false)
   reason       String?
   services     booking_service[]
+  reminderSent Boolean           @default(false)
 
   company    company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   client     client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)

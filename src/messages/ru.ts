@@ -34,6 +34,12 @@ export const ru = {
     cancelledBody: "Здравствуйте, {name}. К сожалению, ваша запись в *{companyName}* на {date} в {time} была отменена.",
     cancelledFooter: "Если у вас возникли вопросы, вы можете связаться с нами или выбрать другое время для записи по ссылке:",
   },
+  reminder: {
+    title: "⏰ *Напоминание!*",
+    body: "Здравствуйте, {name}! Напоминаем о вашей записи в *{companyName}* сегодня в {time}.",
+    specialist: "Специалист: {specialistName}",
+    footer: "Ждем вас!",
+  },
   common: {
     details: "Детали",
     specialist: "Специалист",
