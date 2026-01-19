@@ -66,7 +66,6 @@ export class ClientController {
     @Headers('x-client-locale') local: Local
   ) {
     Logger.log(local);
-    console.log(local);
     const tgData: any = req.telegramUser;
     return this.clientService.create(dto, hostname, tgData, local);
   }

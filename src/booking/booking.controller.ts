@@ -28,7 +28,7 @@ export class BookingController {
   create(
     @Body() dto: CreateBookingDto,
     @Query('hostname') hostname: string,
-    @Headers('x-client-local') locale: Local
+    @Headers('x-client-locale') locale: Local
   ) {
     return this.bookingService.create(dto, hostname, locale);
   }
