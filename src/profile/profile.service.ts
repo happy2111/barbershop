@@ -256,9 +256,6 @@ export class ProfileService {
     oldPassword: string,
     newPassword: string | undefined,
   ) {
-    console.log(
-      oldPassword
-    )
     const user = await this.prisma.specialist.findUnique({
       where: { id: userId, companyId },
     });

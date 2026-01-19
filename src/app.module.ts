@@ -9,19 +9,21 @@ import { ServiceCategoryModule } from './service-category/service-category.modul
 import { ServiceModule } from './service/service.module';
 import { ClientModule } from './client/client.module';
 import { SpecialistServiceModule } from './specialist-service/specialist-service.module';
-import { ScheduleModule } from './schedule/schedule.module';
+import { ScheduleModule as MyScheduleModule } from './schedule/schedule.module';
 import { BookingModule } from './booking/booking.module';
 import { ProfileModule } from './profile/profile.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { IntegrationModule } from './integration/integration.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { MarketingModule } from './marketing/marketing.module';
+import { ScheduleModule   } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     SpecialistModule,
     AuthModule,
@@ -29,7 +31,7 @@ import { MarketingModule } from './marketing/marketing.module';
     ServiceModule,
     ClientModule,
     SpecialistServiceModule,
-    ScheduleModule,
+    MyScheduleModule,
     BookingModule,
     ProfileModule,
     TelegramModule,

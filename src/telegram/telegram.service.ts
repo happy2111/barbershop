@@ -24,7 +24,7 @@ export class TelegramService {
   verifyTelegramInitData(initDataRaw: string, botToken: string | undefined) {
     // const botToken = process.env.BOT_TOKEN;
     if (!botToken) throw new Error('BOT_TOKEN missing');
-    console.log('BOT_TOKEN:', botToken);
+    // console.log('BOT_TOKEN:', botToken);
 
     const params = new URLSearchParams(initDataRaw);
     const hash = params.get('hash');
