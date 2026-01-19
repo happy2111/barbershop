@@ -165,6 +165,8 @@ ${t.marketing.waitingYou}
       if (diffInMinutes >= 5 && diffInMinutes <= 60) {
         await this.sendReminder(booking);
       }
+
+      this.logger.log(`Booking ${booking.id}: diff=${diffInMinutes}, status=${booking.status}, reminderSent=${booking.reminderSent}`);
     }
   }
 
