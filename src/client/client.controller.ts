@@ -63,7 +63,7 @@ export class ClientController {
     @Body() dto: CreateClientDto,
     @Query('hostname') hostname: string,
     @Req() req: any,
-    @Headers('x-client-local') local: Local
+    @Headers('x-client-locale') local: Local
   ) {
     Logger.log(local);
     console.log(local);
