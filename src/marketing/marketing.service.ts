@@ -142,6 +142,9 @@ ${t.marketing.waitingYou}
         // },
         status: BookingStatus.CONFIRMED,
         reminderSent: false,
+        client: {
+          telegramId: { not: null },
+        },
       },
       include: {
         client: true,
