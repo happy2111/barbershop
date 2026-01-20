@@ -136,10 +136,10 @@ ${t.marketing.waitingYou}
     // 1. Берем все подтвержденные записи на сегодня, которые еще не уведомлены
     const bookings = await this.prisma.booking.findMany({
       where: {
-        // date: {
-        //   gte: startOfDay,
-        //   lte: endOfDay,
-        // },
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
         status: BookingStatus.CONFIRMED,
         reminderSent: false,
         client: {
